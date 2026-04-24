@@ -1,0 +1,2172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#2563eb">
+  <title>GBuxBot - Complete Tasks & Earn Money</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    /* ===================== */
+    /* GLOBAL STYLES         */
+    /* ===================== */
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    :root {
+      --primary-blue: #2563eb;
+      --primary-dark: #1e40af;
+      --primary-light: #dbeafe;
+      --bg-white: #ffffff;
+      --bg-gray: #f8fafc;
+      --text-dark: #0f172a;
+      --text-gray: #64748b;
+      --border-light: #e2e8f0;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+      --shadow-md: 0 8px 24px rgba(37, 99, 235, 0.15);
+      --shadow-lg: 0 12px 40px rgba(37, 99, 235, 0.2);
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: 'Segoe UI', 'Helvetica Neue', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, var(--bg-white) 0%, var(--bg-gray) 100%);
+      color: var(--text-dark);
+      overflow: hidden;
+    }
+
+    body {
+      padding: 0;
+      margin: 0;
+    }
+
+    /* ===================== */
+    /* APP CONTAINER         */
+    /* ===================== */
+
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: linear-gradient(135deg, var(--bg-white) 0%, var(--bg-gray) 100%);
+      position: relative;
+    }
+
+    /* ===================== */
+    /* PAGES WRAPPER         */
+    /* ===================== */
+
+    .pages-wrapper {
+      flex: 1;
+      overflow-y: auto;
+      padding-bottom: 85px;
+      background: linear-gradient(135deg, var(--bg-white) 0%, var(--bg-gray) 100%);
+      -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
+    }
+
+    .pages-wrapper::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .pages-wrapper::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .pages-wrapper::-webkit-scrollbar-thumb {
+      background: var(--border-light);
+      border-radius: 3px;
+    }
+
+    .page {
+      display: none;
+      animation: fadeInPage 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      min-height: 100%;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    @keyframes fadeInPage {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .page-content {
+      padding: 24px 16px;
+      max-width: 100%;
+    }
+
+    /* ===================== */
+    /* NAVIGATION BOTTOM     */
+    /* ===================== */
+
+    .bottom-nav {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      background: var(--bg-white);
+      border-top: 1px solid var(--border-light);
+      padding: 8px 0;
+      margin: 0;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 80px;
+      z-index: 100;
+      border-radius: 24px 24px 0 0;
+      box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.08);
+      backdrop-filter: blur(10px);
+      background: rgba(255, 255, 255, 0.95);
+    }
+
+    .nav-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 12px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-gray);
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      border-radius: 14px;
+      font-size: 12px;
+      gap: 6px;
+      min-width: 60px;
+      position: relative;
+    }
+
+    .nav-btn i {
+      font-size: 24px;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .nav-btn:active {
+      transform: scale(0.92);
+    }
+
+    .nav-btn:hover {
+      background-color: rgba(37, 99, 235, 0.1);
+    }
+
+    .nav-btn.active {
+      color: var(--primary-blue);
+      background-color: rgba(37, 99, 235, 0.12);
+    }
+
+    .nav-btn.active i {
+      animation: iconPulse 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transform: scale(1.2) translateY(-3px);
+    }
+
+    @keyframes iconPulse {
+      0% {
+        transform: scale(1) translateY(0);
+      }
+      50% {
+        transform: scale(1.3) translateY(-5px);
+      }
+      100% {
+        transform: scale(1.2) translateY(-3px);
+      }
+    }
+
+    .nav-btn span {
+      font-size: 10px;
+      margin-top: 2px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    /* ===================== */
+    /* PROFILE SECTION       */
+    /* ===================== */
+
+    .profile-header {
+      margin-bottom: 32px;
+      animation: slideDownProfile 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes slideDownProfile {
+      from {
+        opacity: 0;
+        transform: translateY(-30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .profile-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 18px;
+      background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-dark) 100%);
+      padding: 28px 24px;
+      border-radius: 24px;
+      color: white;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .profile-card::before {
+      content: '';
+      position: absolute;
+      top: -100px;
+      right: -100px;
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.15), transparent);
+      border-radius: 50%;
+      animation: orbitFloat 8s linear infinite;
+    }
+
+    @keyframes orbitFloat {
+      0% {
+        transform: translate(0, 0) rotate(0deg);
+      }
+      50% {
+        transform: translate(20px, 20px) rotate(180deg);
+      }
+      100% {
+        transform: translate(0, 0) rotate(360deg);
+      }
+    }
+
+    .profile-card::after {
+      content: '';
+      position: absolute;
+      bottom: -50px;
+      left: -50px;
+      width: 150px;
+      height: 150px;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent);
+      border-radius: 50%;
+      animation: orbitFloatReverse 6s linear infinite;
+    }
+
+    @keyframes orbitFloatReverse {
+      0% {
+        transform: translate(0, 0) rotate(360deg);
+      }
+      100% {
+        transform: translate(0, 0) rotate(0deg);
+      }
+    }
+
+    .profile-photo {
+      width: 90px;
+      height: 90px;
+      border-radius: 18px;
+      object-fit: cover;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      flex-shrink: 0;
+      position: relative;
+      z-index: 2;
+      animation: photoZoom 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes photoZoom {
+      from {
+        transform: scale(0.8) rotate(-10deg);
+        opacity: 0;
+      }
+      to {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+      }
+    }
+
+    .profile-info {
+      flex: 1;
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .profile-info h2 {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 14px;
+      letter-spacing: -0.5px;
+      animation: titleSlideIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s backwards;
+    }
+
+    @keyframes titleSlideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .balance-display {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .balance-label {
+      font-size: 12px;
+      opacity: 0.85;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      animation: labelFadeIn 0.6s ease-out 0.3s backwards;
+    }
+
+    @keyframes labelFadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 0.85;
+      }
+    }
+
+    .balance-amount {
+      font-size: 32px;
+      font-weight: 900;
+      letter-spacing: -1px;
+      animation: balancePopIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 0.4s backwards;
+    }
+
+    @keyframes balancePopIn {
+      from {
+        opacity: 0;
+        transform: scale(0.5) translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    /* ===================== */
+    /* POST/CREATE SECTION   */
+    /* ===================== */
+
+    .post-section {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 28px;
+      animation: slideUpPost 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s backwards;
+    }
+
+    @keyframes slideUpPost {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .post-input-wrapper {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: white;
+      padding: 14px 18px;
+      border-radius: 14px;
+      border: 1.5px solid var(--border-light);
+      box-shadow: var(--shadow-sm);
+      transition: all 0.3s ease;
+    }
+
+    .post-input-wrapper:hover {
+      border-color: var(--primary-blue);
+      box-shadow: var(--shadow-md);
+    }
+
+    .post-input-wrapper input {
+      flex: 1;
+      border: none;
+      background: none;
+      outline: none;
+      font-size: 14px;
+      color: var(--text-dark);
+      font-weight: 500;
+    }
+
+    .post-input-wrapper input::placeholder {
+      color: var(--text-gray);
+    }
+
+    .post-icon {
+      font-size: 18px;
+      color: var(--primary-blue);
+    }
+
+    .btn-post {
+      padding: 12px 18px;
+      background: linear-gradient(135deg, var(--primary-blue), var(--primary-dark));
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 14px;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: var(--shadow-md);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .btn-post:active {
+      transform: scale(0.95);
+    }
+
+    .btn-post:hover {
+      box-shadow: 0 12px 36px rgba(37, 99, 235, 0.35);
+      transform: translateY(-2px);
+    }
+
+    /* ===================== */
+    /* BUTTONS               */
+    /* ===================== */
+
+    .btn-primary {
+      width: 100%;
+      padding: 14px 20px;
+      background: linear-gradient(135deg, var(--primary-blue), var(--primary-dark));
+      color: white;
+      border: none;
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn-primary:active {
+      transform: scale(0.97);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 14px 40px rgba(37, 99, 235, 0.4);
+      transform: translateY(-3px);
+    }
+
+    .btn-primary.secondary {
+      background: rgba(37, 99, 235, 0.1);
+      color: var(--primary-blue);
+      box-shadow: none;
+    }
+
+    .btn-primary.secondary:hover {
+      background: rgba(37, 99, 235, 0.15);
+    }
+
+    /* ===================== */
+    /* SECTION HEADERS       */
+    /* ===================== */
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 16px;
+      font-weight: 800;
+      margin-bottom: 18px;
+      color: var(--text-dark);
+      letter-spacing: -0.3px;
+    }
+
+    .section-header i {
+      font-size: 20px;
+      color: var(--primary-blue);
+    }
+
+    /* ===================== */
+    /* TASKS SECTION         */
+    /* ===================== */
+
+    .tasks-section {
+      margin-top: 24px;
+    }
+
+    .tasks-container {
+      display: grid;
+      gap: 12px;
+    }
+
+    .task-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: white;
+      border: 1.5px solid var(--border-light);
+      padding: 16px 14px;
+      border-radius: 16px;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      cursor: pointer;
+      animation: taskSlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .task-card:nth-child(1) { animation-delay: 0.05s; }
+    .task-card:nth-child(2) { animation-delay: 0.1s; }
+    .task-card:nth-child(3) { animation-delay: 0.15s; }
+    .task-card:nth-child(n+4) { animation-delay: 0.2s; }
+
+    @keyframes taskSlideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-30px) rotateY(10deg);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0) rotateY(0);
+      }
+    }
+
+    .task-card:active {
+      transform: scale(0.97);
+    }
+
+    .task-card:hover {
+      border-color: var(--primary-blue);
+      box-shadow: 0 8px 24px rgba(37, 99, 235, 0.15);
+      transform: translateY(-4px);
+    }
+
+    .task-icon {
+      width: 52px;
+      height: 52px;
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(37, 99, 235, 0.08));
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary-blue);
+      font-size: 24px;
+      flex-shrink: 0;
+      border: 1px solid rgba(37, 99, 235, 0.2);
+      transition: all 0.3s ease;
+    }
+
+    .task-card:hover .task-icon {
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.25), rgba(37, 99, 235, 0.15));
+      transform: rotate(10deg) scale(1.05);
+    }
+
+    .task-info {
+      flex: 1;
+    }
+
+    .task-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 6px;
+      line-height: 1.3;
+      letter-spacing: -0.2px;
+    }
+
+    .task-reward {
+      font-size: 12px;
+      color: var(--success);
+      font-weight: 800;
+      letter-spacing: 0.3px;
+    }
+
+    .btn-task-action {
+      padding: 8px 16px;
+      background: linear-gradient(135deg, var(--primary-blue), var(--primary-dark));
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 800;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      white-space: nowrap;
+      flex-shrink: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    }
+
+    .btn-task-action:active {
+      transform: scale(0.93);
+    }
+
+    .btn-task-action:hover {
+      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+      transform: translateY(-2px);
+    }
+
+    .btn-task-action.claimed {
+      background: linear-gradient(135deg, var(--success), #059669);
+    }
+
+    .btn-task-action.pending {
+      background: linear-gradient(135deg, var(--warning), #d97706);
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    /* ===================== */
+    /* COMING SOON           */
+    /* ===================== */
+
+    .coming-soon {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      gap: 20px;
+      text-align: center;
+    }
+
+    .coming-soon-icon {
+      font-size: 72px;
+      color: var(--primary-blue);
+      animation: rocketFloat 3s ease-in-out infinite;
+    }
+
+    @keyframes rocketFloat {
+      0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+      }
+      50% {
+        transform: translateY(-30px) rotate(5deg);
+      }
+    }
+
+    .coming-soon h2 {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-dark);
+    }
+
+    .coming-soon p {
+      color: var(--text-gray);
+      font-size: 14px;
+      max-width: 280px;
+      line-height: 1.6;
+    }
+
+    /* ===================== */
+    /* REFERRAL SECTION      */
+    /* ===================== */
+
+    .referral-section {
+      margin-bottom: 32px;
+      animation: slideUpPost 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .referral-card {
+      display: flex;
+      gap: 10px;
+      margin: 14px 0;
+    }
+
+    .referral-input {
+      flex: 1;
+      padding: 14px 16px;
+      border: 1.5px solid var(--border-light);
+      border-radius: 12px;
+      background-color: white;
+      color: var(--text-gray);
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .referral-input:focus {
+      outline: none;
+      border-color: var(--primary-blue);
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn-copy {
+      padding: 14px 18px;
+      background: linear-gradient(135deg, var(--primary-blue), var(--primary-dark));
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      font-size: 16px;
+      box-shadow: var(--shadow-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-copy:active {
+      transform: scale(0.93);
+    }
+
+    .btn-copy:hover {
+      box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+    }
+
+    .referral-note {
+      font-size: 13px;
+      color: var(--text-gray);
+      margin-top: 12px;
+      font-weight: 600;
+    }
+
+    .referral-users,
+    .commission-summary {
+      margin-bottom: 32px;
+    }
+
+    .referral-users h3,
+    .commission-summary h4 {
+      font-size: 15px;
+      font-weight: 800;
+      margin-bottom: 14px;
+      color: var(--text-dark);
+      letter-spacing: -0.3px;
+    }
+
+    .users-list,
+    .commission-items {
+      display: grid;
+      gap: 10px;
+    }
+
+    .user-item,
+    .commission-item {
+      padding: 16px;
+      background: white;
+      border-radius: 14px;
+      border-left: 4px solid var(--primary-blue);
+      font-size: 12px;
+      transition: all 0.3s ease;
+      box-shadow: var(--shadow-sm);
+      border: 1.5px solid var(--border-light);
+      border-left: 4px solid var(--primary-blue);
+    }
+
+    .user-item:hover {
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+    }
+
+    .user-name {
+      font-weight: 800;
+      color: var(--text-dark);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .user-date {
+      color: var(--text-gray);
+      font-size: 12px;
+      line-height: 1.6;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 500;
+    }
+
+    .commission-amount {
+      font-weight: 800;
+      color: var(--success);
+      margin-top: 8px;
+      font-size: 13px;
+    }
+
+    /* ===================== */
+    /* PAYOUT SECTION        */
+    /* ===================== */
+
+    .payout-summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .summary-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 18px 16px;
+      background: white;
+      border: 1.5px solid var(--border-light);
+      border-radius: 16px;
+      text-align: center;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      animation: cardSlideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .summary-card:nth-child(1) { animation-delay: 0.1s; }
+    .summary-card:nth-child(2) { animation-delay: 0.2s; }
+    .summary-card:nth-child(3) { animation-delay: 0.3s; }
+
+    @keyframes cardSlideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .summary-card:hover {
+      border-color: var(--primary-blue);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-6px);
+      background: linear-gradient(135deg, white 0%, rgba(37, 99, 235, 0.05) 100%);
+    }
+
+    .summary-label {
+      font-size: 11px;
+      color: var(--text-gray);
+      margin-bottom: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .summary-value {
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--primary-blue);
+      letter-spacing: -0.5px;
+    }
+
+    .withdrawal-history {
+      margin-bottom: 32px;
+    }
+
+    .withdrawal-history h3 {
+      font-size: 15px;
+      font-weight: 800;
+      margin-bottom: 14px;
+      color: var(--text-dark);
+      letter-spacing: -0.3px;
+    }
+
+    .history-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .history-item {
+      padding: 16px;
+      background: white;
+      border: 1.5px solid var(--border-light);
+      border-radius: 14px;
+      font-size: 12px;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.3s ease;
+    }
+
+    .history-item:hover {
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+    }
+
+    .history-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .history-amount {
+      font-weight: 800;
+      color: var(--text-dark);
+      font-size: 13px;
+    }
+
+    .history-status {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 6px 10px;
+      border-radius: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .history-status.pending {
+      background: rgba(245, 158, 11, 0.12);
+      color: var(--warning);
+    }
+
+    .history-status.approved {
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--success);
+    }
+
+    .history-address {
+      color: var(--text-gray);
+      font-size: 11px;
+      word-break: break-all;
+      margin-top: 8px;
+      font-weight: 600;
+    }
+
+    /* ===================== */
+    /* FORMS                 */
+    /* ===================== */
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 10px;
+      color: var(--text-dark);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1.5px solid var(--border-light);
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      transition: all 0.3s ease;
+      background: white;
+      color: var(--text-dark);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .form-group input::placeholder,
+    .form-group textarea::placeholder {
+      color: var(--text-gray);
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: var(--primary-blue);
+      box-shadow: var(--shadow-md);
+      background: rgba(37, 99, 235, 0.02);
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 110px;
+    }
+
+    .input-with-btn {
+      display: flex;
+      gap: 10px;
+    }
+
+    .input-with-btn input {
+      flex: 1;
+    }
+
+    .btn-max {
+      padding: 14px 16px;
+      background: linear-gradient(135deg, var(--primary-blue), var(--primary-dark));
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 800;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      white-space: nowrap;
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn-max:active {
+      transform: scale(0.95);
+    }
+
+    .btn-max:hover {
+      box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+    }
+
+    /* ===================== */
+    /* MODALS                */
+    /* ===================== */
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: flex-end;
+      animation: modalFadeIn 0.3s ease;
+      backdrop-filter: blur(4px);
+    }
+
+    @keyframes modalFadeIn {
+      from {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+      }
+      to {
+        opacity: 1;
+        backdrop-filter: blur(4px);
+      }
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background-color: white;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      border-radius: 28px 28px 0 0;
+      padding: 24px;
+      animation: modalSlideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.2);
+    }
+
+    @keyframes modalSlideUp {
+      from {
+        transform: translateY(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .modal-content::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .modal-content::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .modal-content::-webkit-scrollbar-thumb {
+      background: var(--border-light);
+      border-radius: 3px;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1.5px solid var(--border-light);
+    }
+
+    .modal-header h2 {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text-dark);
+      letter-spacing: -0.3px;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 28px;
+      cursor: pointer;
+      color: var(--text-gray);
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      padding: 0;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+    }
+
+    .modal-close:active {
+      transform: scale(0.85);
+    }
+
+    .modal-close:hover {
+      background: rgba(37, 99, 235, 0.1);
+      color: var(--primary-blue);
+      transform: rotate(90deg);
+    }
+
+    /* ===================== */
+    /* TOAST NOTIFICATION    */
+    /* ===================== */
+
+    .toast {
+      position: fixed;
+      bottom: 100px;
+      left: 16px;
+      right: 16px;
+      padding: 16px 18px;
+      background: white;
+      color: var(--text-dark);
+      border-radius: 14px;
+      font-size: 13px;
+      z-index: 2000;
+      opacity: 0;
+      transform: translateY(30px);
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      pointer-events: none;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-left: 4px solid transparent;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .toast.success {
+      background: linear-gradient(135deg, var(--success), #059669);
+      color: white;
+      border-left-color: white;
+    }
+
+    .toast.error {
+      background: linear-gradient(135deg, var(--danger), #dc2626);
+      color: white;
+      border-left-color: white;
+    }
+
+    .toast.warning {
+      background: linear-gradient(135deg, var(--warning), #d97706);
+      color: white;
+      border-left-color: white;
+    }
+
+    .toast i {
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    /* ===================== */
+    /* LOADING SPINNER       */
+    /* ===================== */
+
+    .loading-spinner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 50px 20px;
+      color: var(--text-gray);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .loading-spinner i {
+      animation: spin 2s linear infinite;
+      font-size: 28px;
+      color: var(--primary-blue);
+    }
+
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* ===================== */
+    /* EMPTY STATE           */
+    /* ===================== */
+
+    .empty-state {
+      text-align: center;
+      padding: 50px 20px;
+      color: var(--text-gray);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    /* ===================== */
+    /* TASK DETAIL           */
+    /* ===================== */
+
+    .task-detail-header {
+      text-align: center;
+      padding: 28px 20px;
+      background: linear-gradient(135deg, var(--primary-blue), var(--primary-dark));
+      color: white;
+      border-radius: 18px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .task-detail-title {
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      letter-spacing: -0.3px;
+    }
+
+    .task-detail-reward {
+      font-size: 32px;
+      font-weight: 900;
+      letter-spacing: -1px;
+    }
+
+    .task-detail-link {
+      padding: 18px;
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.03));
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      border: 1.5px solid rgba(37, 99, 235, 0.2);
+    }
+
+    .task-detail-link a {
+      flex: 1;
+      color: var(--primary-blue);
+      text-decoration: none;
+      font-size: 12px;
+      word-break: break-all;
+      font-weight: 700;
+    }
+
+    .task-detail-link a:hover {
+      text-decoration: underline;
+    }
+
+    .task-detail-link-btn {
+      padding: 12px 14px;
+      background: linear-gradient(135deg, var(--primary-blue), var(--primary-dark));
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 800;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      white-space: nowrap;
+      box-shadow: var(--shadow-md);
+    }
+
+    .task-detail-link-btn:active {
+      transform: scale(0.93);
+    }
+
+    .task-detail-link-btn:hover {
+      box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+    }
+
+    .timer {
+      text-align: center;
+      padding: 28px 20px;
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05));
+      border-radius: 14px;
+      font-weight: 800;
+      color: var(--warning);
+      border: 1.5px solid rgba(245, 158, 11, 0.2);
+      margin-bottom: 20px;
+    }
+
+    .timer p {
+      margin-bottom: 14px;
+      font-size: 14px;
+    }
+
+    .timer-value {
+      font-size: 56px;
+      font-weight: 900;
+      letter-spacing: -2px;
+      animation: timerPulse 1s ease-in-out infinite;
+    }
+
+    @keyframes timerPulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.1);
+      }
+    }
+
+    /* ===================== */
+    /* RESPONSIVE            */
+    /* ===================== */
+
+    @media (max-width: 480px) {
+      .payout-summary {
+        grid-template-columns: 1fr;
+      }
+
+      .profile-card {
+        padding: 24px 20px;
+      }
+
+      .balance-amount {
+        font-size: 28px;
+      }
+
+      .summary-value {
+        font-size: 18px;
+      }
+
+      .page-content {
+        padding: 20px 14px;
+      }
+
+      .modal-content {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Main Container -->
+  <div class="app-container">
+    <!-- Pages Container -->
+    <div class="pages-wrapper">
+      
+      <!-- HOME PAGE -->
+      <div class="page" id="home-page">
+        <div class="page-content">
+          <!-- User Profile Header -->
+          <div class="profile-header">
+            <div class="profile-card">
+              <img id="profilePhoto" src="https://via.placeholder.com/90/2563eb/ffffff?text=User" alt="Profile" class="profile-photo">
+              <div class="profile-info">
+                <h2 id="firstName">Welcome</h2>
+                <div class="balance-display">
+                  <span class="balance-label">Your Balance</span>
+                  <span id="balance" class="balance-amount">$0.00</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Post/Create Section -->
+          <div class="post-section">
+            <div class="post-input-wrapper">
+              <i class="fas fa-pen-fancy post-icon"></i>
+              <input type="text" placeholder="Post Task..." readonly>
+            </div>
+            <button class="btn-post" id="createTaskBtn">
+              <i class="fas fa-plus"></i> Post
+            </button>
+          </div>
+
+          <!-- Tasks List -->
+          <div class="tasks-section">
+            <div class="section-header">
+              <i class="fas fa-list-check"></i>
+              Available Tasks
+            </div>
+            <div id="tasksList" class="tasks-container">
+              <div class="loading-spinner">
+                <i class="fas fa-spinner"></i> Loading Tasks...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EARN PAGE (Coming Soon) -->
+      <div class="page" id="earn-page">
+        <div class="page-content coming-soon">
+          <div class="coming-soon-icon">
+            <i class="fas fa-rocket"></i>
+          </div>
+          <h2>Coming Soon</h2>
+          <p>Exciting earning opportunities are on the way. Stay tuned!</p>
+        </div>
+      </div>
+
+      <!-- INVITE PAGE -->
+      <div class="page" id="invite-page">
+        <div class="page-content">
+          <!-- Referral Link Section -->
+          <div class="referral-section">
+            <div class="section-header">
+              <i class="fas fa-share-nodes"></i>
+              Your Referral Link
+            </div>
+            <p style="font-size: 13px; color: var(--text-gray); margin-bottom: 14px; font-weight: 600;">Share this link and earn 10% commission</p>
+            <div class="referral-card">
+              <input type="text" id="referralLink" readonly class="referral-input">
+              <button class="btn-copy" id="copyRefBtn" title="Copy">
+                <i class="fas fa-copy"></i>
+              </button>
+            </div>
+            <p class="referral-note"><i class="fas fa-info-circle"></i> You get 10% from each referral withdrawal</p>
+          </div>
+
+          <!-- Referred Users List -->
+          <div class="referral-users">
+            <div class="section-header">
+              <i class="fas fa-users"></i>
+              Your Referrals
+            </div>
+            <div id="referralsList" class="users-list">
+              <p class="empty-state">No referrals yet. Share your link to get started!</p>
+            </div>
+          </div>
+
+          <!-- Commission Summary -->
+          <div class="commission-summary">
+            <div class="section-header">
+              <i class="fas fa-chart-line"></i>
+              Commission History
+            </div>
+            <div id="commissionHistory" class="commission-items">
+              <p class="empty-state">No commissions earned yet</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAYOUT PAGE -->
+      <div class="page" id="payout-page">
+        <div class="page-content">
+          <!-- Balance Summary -->
+          <div class="payout-summary">
+            <div class="summary-card">
+              <span class="summary-label"><i class="fas fa-wallet"></i> Total Balance</span>
+              <span id="totalBalance" class="summary-value">$0.00</span>
+            </div>
+            <div class="summary-card">
+              <span class="summary-label"><i class="fas fa-tasks"></i> Tasks Done</span>
+              <span id="tasksCount" class="summary-value">0</span>
+            </div>
+            <div class="summary-card">
+              <span class="summary-label"><i class="fas fa-users"></i> Referrals</span>
+              <span id="referralCount" class="summary-value">0</span>
+            </div>
+          </div>
+
+          <!-- Withdrawal Button -->
+          <button class="btn-primary btn-withdraw" id="withdrawBtn" style="margin-bottom: 32px;">
+            <i class="fas fa-arrow-down"></i> Withdraw Now
+          </button>
+
+          <!-- Withdrawal History -->
+          <div class="withdrawal-history">
+            <div class="section-header">
+              <i class="fas fa-history"></i>
+              Withdrawal History
+            </div>
+            <div id="withdrawalHistory" class="history-list">
+              <p class="empty-state">No withdrawals yet</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Menu - Bottom Capsule -->
+    <nav class="bottom-nav">
+      <button class="nav-btn active" data-page="home" title="Home">
+        <i class="fas fa-home"></i>
+        <span>Home</span>
+      </button>
+      <button class="nav-btn" data-page="earn" title="Earn">
+        <i class="fas fa-money-bill-wave"></i>
+        <span>Earn</span>
+      </button>
+      <button class="nav-btn" data-page="invite" title="Invite">
+        <i class="fas fa-user-plus"></i>
+        <span>Invite</span>
+      </button>
+      <button class="nav-btn" data-page="payout" title="Payout">
+        <i class="fas fa-wallet"></i>
+        <span>Payout</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Create Task Modal -->
+  <div id="taskModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2><i class="fas fa-plus-circle"></i> Create New Task</h2>
+        <button class="modal-close" id="closeTaskModal">×</button>
+      </div>
+      <form id="taskForm" class="task-form">
+        <div class="form-group">
+          <label><i class="fas fa-heading"></i> Task Title</label>
+          <input type="text" id="taskTitle" required placeholder="Enter task title">
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-align-left"></i> Description</label>
+          <textarea id="taskDesc" placeholder="Task description (optional)"></textarea>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-dollar-sign"></i> Reward (USD)</label>
+          <input type="number" id="taskReward" step="0.01" required placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-sliders"></i> Task Type</label>
+          <select id="taskType" required>
+            <option value="">Select Type</option>
+            <option value="channel">Join Channel</option>
+            <option value="link">Visit Link</option>
+          </select>
+        </div>
+        <div class="form-group" id="channelGroup" style="display:none;">
+          <label><i class="fas fa-hashtag"></i> Channel ID</label>
+          <input type="text" id="channelId" placeholder="-1001234567890">
+        </div>
+        <div class="form-group" id="linkGroup" style="display:none;">
+          <label><i class="fas fa-link"></i> URL</label>
+          <input type="url" id="linkUrl" placeholder="https://example.com">
+        </div>
+        <button type="submit" class="btn-primary">
+          <i class="fas fa-check-circle"></i> Create Task
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Withdrawal Modal -->
+  <div id="withdrawalModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2><i class="fas fa-arrow-down"></i> Withdraw Funds</h2>
+        <button class="modal-close" id="closeWithdrawModal">×</button>
+      </div>
+      <form id="withdrawalForm" class="withdrawal-form">
+        <div class="form-group">
+          <label><i class="fas fa-coins"></i> Amount (USD)</label>
+          <div class="input-with-btn">
+            <input type="number" id="withdrawAmount" step="0.01" required placeholder="0.00">
+            <button type="button" class="btn-max" id="maxBtn">MAX</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-wallet"></i> USDT (BEP-20) Address</label>
+          <input type="text" id="usdtAddress" required placeholder="0x... wallet address">
+        </div>
+        <button type="submit" class="btn-primary">
+          <i class="fas fa-check-circle"></i> Confirm Withdrawal
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Task Detail Modal -->
+  <div id="taskDetailModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="taskDetailTitle">Task Details</h2>
+        <button class="modal-close" id="closeDetailModal">×</button>
+      </div>
+      <div id="taskDetailContent" class="task-detail">
+        <!-- Dynamic content will be inserted here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // =====================
+    // GLOBAL VARIABLES
+    // =====================
+
+    const API_BASE_URL = window.location.origin;
+    let currentUser = {};
+    let allTasks = [];
+    let completedTasks = new Set();
+    let currentPage = 'home';
+    let currentTaskTimer = null;
+
+    // =====================
+    // INITIALIZATION
+    // =====================
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeApp();
+      setupEventListeners();
+    });
+
+    async function initializeApp() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('userId');
+        const firstName = urlParams.get('firstName');
+
+        if (!userId) {
+          showToast('User ID not found', 'error');
+          return;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/api/user`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId })
+        });
+
+        const userData = await response.json();
+        currentUser = userData || {};
+        currentUser.userId = userId;
+        currentUser.firstName = firstName || currentUser.firstName || 'User';
+
+        updateProfileUI();
+        loadTasks();
+        loadReferralData();
+        loadWithdrawalHistory();
+        
+        showToast(`Welcome ${currentUser.firstName}!`, 'success');
+      } catch (error) {
+        console.error('Init error:', error);
+        showToast('Failed to load data', 'error');
+      }
+    }
+
+    function setupEventListeners() {
+      document.querySelectorAll('.nav-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          handlePageNavigation(btn.dataset.page);
+        });
+      });
+
+      document.getElementById('createTaskBtn').addEventListener('click', openTaskModal);
+      document.getElementById('closeTaskModal').addEventListener('click', closeTaskModal);
+      document.getElementById('closeWithdrawModal').addEventListener('click', closeWithdrawalModal);
+      document.getElementById('closeDetailModal').addEventListener('click', closeDetailModal);
+      document.getElementById('taskForm').addEventListener('submit', submitTaskForm);
+      document.getElementById('withdrawalForm').addEventListener('submit', submitWithdrawalForm);
+      document.getElementById('copyRefBtn').addEventListener('click', copyReferralLink);
+      document.getElementById('maxBtn').addEventListener('click', setMaxWithdrawal);
+      document.getElementById('withdrawBtn').addEventListener('click', openWithdrawalModal);
+
+      document.getElementById('taskType').addEventListener('change', (e) => {
+        document.getElementById('channelGroup').style.display = e.target.value === 'channel' ? 'block' : 'none';
+        document.getElementById('linkGroup').style.display = e.target.value === 'link' ? 'block' : 'none';
+      });
+    }
+
+    // =====================
+    // PAGE NAVIGATION
+    // =====================
+
+    function handlePageNavigation(pageName) {
+      document.querySelectorAll('.page').forEach((p) => p.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
+
+      document.getElementById(`${pageName}-page`).classList.add('active');
+      document.querySelector(`[data-page="${pageName}"]`).classList.add('active');
+
+      currentPage = pageName;
+
+      if (pageName === 'invite') loadReferralData();
+      else if (pageName === 'payout') loadWithdrawalHistory();
+    }
+
+    // =====================
+    // PROFILE UI
+    // =====================
+
+    function updateProfileUI() {
+      document.getElementById('firstName').textContent = currentUser.firstName || 'User';
+      const balance = parseFloat(currentUser.balance) || 0;
+      document.getElementById('balance').textContent = `$${balance.toFixed(2)}`;
+      document.getElementById('totalBalance').textContent = `$${balance.toFixed(2)}`;
+      document.getElementById('tasksCount').textContent = currentUser.tasksCompleted || 0;
+      document.getElementById('referralCount').textContent = currentUser.referralsCount || 0;
+
+      const photoUrl = currentUser.photoUrl || 'https://via.placeholder.com/90/2563eb/ffffff?text=User';
+      document.getElementById('profilePhoto').src = photoUrl;
+
+      const referralCode = currentUser.referralCode || 'XXXXX';
+      document.getElementById('referralLink').value = `https://t.me/YOUR_BOT?start=${referralCode}`;
+    }
+
+    // =====================
+    // TASKS MANAGEMENT
+    // =====================
+
+    async function loadTasks() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/tasks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+
+        const tasksData = await response.json();
+        allTasks = Object.values(tasksData || {});
+        renderTasks();
+      } catch (error) {
+        console.error('Load tasks error:', error);
+        showToast('Failed to load tasks', 'error');
+        document.getElementById('tasksList').innerHTML = '<p class="empty-state">Failed to load tasks</p>';
+      }
+    }
+
+    function renderTasks() {
+      const tasksList = document.getElementById('tasksList');
+
+      if (allTasks.length === 0) {
+        tasksList.innerHTML = '<p class="empty-state">No tasks available. Check back later!</p>';
+        return;
+      }
+
+      const completedTaskIds = currentUser.completedTasks || [];
+
+      tasksList.innerHTML = allTasks.map((task, index) => {
+        const isCompleted = completedTaskIds.includes(task.taskId);
+        const icon = task.taskType === 'channel' ? 'fa-users' : 'fa-external-link-alt';
+        const buttonText = isCompleted ? 'Claimed' : 'Earn';
+        const buttonClass = isCompleted ? 'claimed' : '';
+
+        return `
+          <div class="task-card">
+            <div class="task-icon">
+              <i class="fas ${icon}"></i>
+            </div>
+            <div class="task-info">
+              <div class="task-title">${task.title}</div>
+              <div class="task-reward">+$${task.rewardAmount.toFixed(2)}</div>
+            </div>
+            <button class="btn-task-action ${buttonClass}" 
+                    onclick="handleTaskAction('${task.taskId}', '${task.taskType}')"
+                    ${isCompleted ? 'disabled' : ''}>
+              ${buttonText}
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function handleTaskAction(taskId, taskType) {
+      try {
+        const task = allTasks.find((t) => t.taskId === taskId);
+
+        if (!task) {
+          showToast('Task not found', 'error');
+          return;
+        }
+
+        if (taskType === 'channel') {
+          openTaskDetailForChannel(task);
+        } else if (taskType === 'link') {
+          openTaskDetailForLink(task);
+        }
+      } catch (error) {
+        console.error('Task action error:', error);
+        showToast('Failed to open task', 'error');
+      }
+    }
+
+    function openTaskDetailForChannel(task) {
+      const modal = document.getElementById('taskDetailModal');
+      const content = document.getElementById('taskDetailContent');
+
+      content.innerHTML = `
+        <div class="task-detail-header">
+          <div class="task-detail-title">${task.title}</div>
+          <div class="task-detail-reward">+$${task.rewardAmount.toFixed(2)}</div>
+        </div>
+        <p style="font-size: 14px; color: var(--text-gray); margin-bottom: 18px; font-weight: 600;">
+          <i class="fas fa-info-circle"></i> Join the channel below and claim your reward
+        </p>
+        <button class="btn-primary" onclick="openChannelAndClaim('${task.taskId}', '${task.channelId}')">
+          <i class="fas fa-arrow-up-right-from-square"></i> Join Channel
+        </button>
+      `;
+
+      modal.classList.add('active');
+    }
+
+    function openTaskDetailForLink(task) {
+      const modal = document.getElementById('taskDetailModal');
+      const content = document.getElementById('taskDetailContent');
+
+      content.innerHTML = `
+        <div class="task-detail-header">
+          <div class="task-detail-title">${task.title}</div>
+          <div class="task-detail-reward">+$${task.rewardAmount.toFixed(2)}</div>
+        </div>
+        <div class="task-detail-link">
+          <a href="${task.linkUrl}" target="_blank">${task.linkUrl}</a>
+          <button class="task-detail-link-btn" onclick="openLinkAndStartTimer('${task.taskId}', '${task.linkUrl}')">
+            <i class="fas fa-external-link-alt"></i> Visit
+          </button>
+        </div>
+        <div id="timerContainer" style="display: none;">
+          <div class="timer">
+            <p><i class="fas fa-hourglass-end"></i> Keep the tab open for 5 seconds</p>
+            <div class="timer-value" id="timerValue">5</div>
+          </div>
+          <button class="btn-primary" id="claimBtn" style="margin-top: 18px; display: none;" onclick="claimTaskReward('${task.taskId}')">
+            <i class="fas fa-check-circle"></i> Claim Reward
+          </button>
+        </div>
+      `;
+
+      modal.classList.add('active');
+    }
+
+    function openChannelAndClaim(taskId, channelId) {
+      window.open(`https://t.me/${channelId}`, '_blank');
+      showToast('Return after joining the channel', 'warning');
+
+      setTimeout(async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/complete-task`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentUser.userId, taskId })
+          });
+
+          if (response.ok) {
+            showToast('Congratulations! Reward claimed!', 'success');
+            const task = allTasks.find((t) => t.taskId === taskId);
+            currentUser.balance = (parseFloat(currentUser.balance) || 0) + (task?.rewardAmount || 0);
+            currentUser.tasksCompleted = (currentUser.tasksCompleted || 0) + 1;
+            updateProfileUI();
+            loadTasks();
+            closeDetailModal();
+          } else {
+            showToast('Please join the channel first', 'error');
+          }
+        } catch (error) {
+          console.error('Claim error:', error);
+          showToast('Failed to claim reward', 'error');
+        }
+      }, 2000);
+    }
+
+    function openLinkAndStartTimer(taskId, linkUrl) {
+      window.open(linkUrl, '_blank');
+      const timerContainer = document.getElementById('timerContainer');
+      timerContainer.style.display = 'block';
+
+      let timeLeft = 5;
+      const timerValue = document.getElementById('timerValue');
+
+      if (currentTaskTimer) clearInterval(currentTaskTimer);
+
+      currentTaskTimer = setInterval(() => {
+        timeLeft--;
+        timerValue.textContent = timeLeft;
+
+        if (timeLeft <= 0) {
+          clearInterval(currentTaskTimer);
+          document.getElementById('claimBtn').style.display = 'block';
+          timerContainer.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 1000);
+    }
+
+    async function claimTaskReward(taskId) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/complete-task`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUser.userId, taskId })
+        });
+
+        if (response.ok) {
+          showToast('Congratulations! Reward claimed!', 'success');
+          const task = allTasks.find((t) => t.taskId === taskId);
+          currentUser.balance = (parseFloat(currentUser.balance) || 0) + (task?.rewardAmount || 0);
+          currentUser.tasksCompleted = (currentUser.tasksCompleted || 0) + 1;
+          updateProfileUI();
+          loadTasks();
+          closeDetailModal();
+          if (currentTaskTimer) clearInterval(currentTaskTimer);
+        } else {
+          showToast('Failed to claim reward', 'error');
+        }
+      } catch (error) {
+        console.error('Claim error:', error);
+        showToast('Failed to claim reward', 'error');
+      }
+    }
+
+    // =====================
+    // FORM SUBMISSIONS
+    // =====================
+
+    async function submitTaskForm(e) {
+      e.preventDefault();
+
+      const title = document.getElementById('taskTitle').value;
+      const description = document.getElementById('taskDesc').value;
+      const rewardAmount = document.getElementById('taskReward').value;
+      const taskType = document.getElementById('taskType').value;
+      const channelId = document.getElementById('channelId').value;
+      const linkUrl = document.getElementById('linkUrl').value;
+
+      if (!title || !rewardAmount || !taskType) {
+        showToast('Fill all required fields', 'error');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/create-task`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: currentUser.userId,
+            title,
+            description,
+            rewardAmount,
+            taskType,
+            channelId: taskType === 'channel' ? channelId : null,
+            linkUrl: taskType === 'link' ? linkUrl : null
+          })
+        });
+
+        if (response.ok) {
+          showToast('Task created successfully!', 'success');
+          closeTaskModal();
+          loadTasks();
+          document.getElementById('taskForm').reset();
+        } else {
+          showToast('Failed to create task', 'error');
+        }
+      } catch (error) {
+        console.error('Create task error:', error);
+        showToast('Error creating task', 'error');
+      }
+    }
+
+    async function submitWithdrawalForm(e) {
+      e.preventDefault();
+
+      const amount = parseFloat(document.getElementById('withdrawAmount').value);
+      const usdtAddress = document.getElementById('usdtAddress').value;
+
+      if (!amount || amount <= 0) {
+        showToast('Enter a valid amount', 'error');
+        return;
+      }
+
+      if (amount > parseFloat(currentUser.balance || 0)) {
+        showToast('Insufficient balance', 'error');
+        return;
+      }
+
+      if (!usdtAddress) {
+        showToast('Enter USDT address', 'error');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/withdrawal-request`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUser.userId, amount, usdtAddress })
+        });
+
+        if (response.ok) {
+          showToast('Withdrawal request submitted!', 'success');
+          currentUser.balance = (parseFloat(currentUser.balance) || 0) - amount;
+          updateProfileUI();
+          closeWithdrawalModal();
+          loadWithdrawalHistory();
+          document.getElementById('withdrawalForm').reset();
+        } else {
+          showToast('Withdrawal failed', 'error');
+        }
+      } catch (error) {
+        console.error('Withdrawal error:', error);
+        showToast('Withdrawal error', 'error');
+      }
+    }
+
+    // =====================
+    // REFERRAL FUNCTIONS
+    // =====================
+
+    async function loadReferralData() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/referral-list`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUser.userId })
+        });
+
+        const referrals = await response.json();
+        renderReferralList(referrals);
+      } catch (error) {
+        console.error('Load referrals error:', error);
+      }
+    }
+
+    function renderReferralList(referrals) {
+      const list = document.getElementById('referralsList');
+
+      if (!referrals || referrals.length === 0) {
+        list.innerHTML = '<p class="empty-state">No referrals yet. Share your link!</p>';
+        return;
+      }
+
+      list.innerHTML = referrals.map((user, index) => `
+        <div class="user-item">
+          <div class="user-name"><i class="fas fa-user-circle"></i> ${user.firstName}</div>
+          <div class="user-date">
+            <i class="fas fa-check-circle"></i> ${user.tasksCompleted || 0} tasks completed
+          </div>
+          <div class="user-date">
+            <i class="fas fa-calendar-alt"></i> Joined: ${formatDate(new Date(user.joinedAt))}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function copyReferralLink() {
+      const link = document.getElementById('referralLink').value;
+      navigator.clipboard.writeText(link).then(() => {
+        showToast('Link copied to clipboard!', 'success');
+      }).catch(() => {
+        showToast('Failed to copy', 'error');
+      });
+    }
+
+    // =====================
+    // WITHDRAWAL FUNCTIONS
+    // =====================
+
+    async function loadWithdrawalHistory() {
+      try {
+        const history = document.getElementById('withdrawalHistory');
+        history.innerHTML = '<p class="empty-state">No withdrawals yet</p>';
+      } catch (error) {
+        console.error('Load withdrawal history error:', error);
+      }
+    }
+
+    function setMaxWithdrawal() {
+      const balance = parseFloat(currentUser.balance) || 0;
+      document.getElementById('withdrawAmount').value = balance.toFixed(2);
+    }
+
+    // =====================
+    // MODAL FUNCTIONS
+    // =====================
+
+    function openTaskModal() {
+      document.getElementById('taskModal').classList.add('active');
+    }
+
+    function closeTaskModal() {
+      document.getElementById('taskModal').classList.remove('active');
+    }
+
+    function openWithdrawalModal() {
+      document.getElementById('withdrawalModal').classList.add('active');
+    }
+
+    function closeWithdrawalModal() {
+      document.getElementById('withdrawalModal').classList.remove('active');
+    }
+
+    function closeDetailModal() {
+      document.getElementById('taskDetailModal').classList.remove('active');
+      if (currentTaskTimer) clearInterval(currentTaskTimer);
+    }
+
+    // =====================
+    // TOAST NOTIFICATION
+    // =====================
+
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      let icon = 'fa-info-circle';
+
+      if (type === 'success') {
+        icon = 'fa-check-circle';
+      } else if (type === 'error') {
+        icon = 'fa-exclamation-circle';
+      } else if (type === 'warning') {
+        icon = 'fa-exclamation-triangle';
+      }
+
+      toast.innerHTML = `<i class="fas ${icon}"></i> ${message}`;
+      toast.className = `toast show ${type}`;
+
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    // =====================
+    // UTILITY FUNCTIONS
+    // =====================
+
+    function formatDate(date) {
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+  </script>
+</body>
+</html>
