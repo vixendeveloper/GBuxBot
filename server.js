@@ -61,7 +61,7 @@ bot.onText(/\/start/, async (msg) => {
     }
 
     // আপনার Render অ্যাপের URL
-    const webAppUrl = `https://your-render-app-name.onrender.com/?userId=${userId}&firstName=${encodeURIComponent(firstName)}`;
+    const webAppUrl = `https://gbuxbot.onrender.com/?userId=${userId}&firstName=${encodeURIComponent(firstName)}`;
 
     const welcomeMessage = `🎉 Welcome to GBuxBot, ${firstName}!\n\nComplete tasks, invite friends, and earn money. Click the button below to open the app and start earning!`;
     
