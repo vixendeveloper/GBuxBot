@@ -58,7 +58,8 @@ const mainMenu = {
 
 const earningMenu = {
     reply_markup: {
-        keyboard: [[{ text: '📢 Join Chats' }, { text: '🤖 Message Bots' }],[{ text: '🎁 Daily Claim' }, { text: '👨‍💻 Micro Tasks' }],[{ text: '🔙 Back' }]
+        keyboard: [[{ text: '📢 Join Chats' }, { text: '🤖 Message Bots' }],[{ text: '🎁 Daily Claim' }, { text: '👨‍💻 Micro Tasks' }],
+            [{ text: '🔙 Back' }]
         ],
         resize_keyboard: true
     }
@@ -70,7 +71,7 @@ const earningMenu = {
 async function checkForceSub(userId) {
     try {
         const channelsSnapshot = await db.collection('settings').doc('channels').get();
-        if (!channelsSnapshot.exists) return true; 
+        if (!channelsSnapshot.exists) return true;
 
         const channels = channelsSnapshot.data().list || [];
         let notJoinedChannels =[];
@@ -87,7 +88,7 @@ async function checkForceSub(userId) {
         }
         return notJoinedChannels;
     } catch (error) {
-        return true; 
+        return true;
     }
 }
 
@@ -116,7 +117,7 @@ bot.onText(/\/start/, async (msg) => {
 
         if (notJoined !== true && notJoined.length > 0) {
             let inlineKeyboard = notJoined.map(ch => [{ text: `Join ${ch.name}`, url: ch.url }]);
-            
+
             // WebApp Verify Button
             const verifyUrl = `https://gbuxbot.onrender.com/verify?userId=${userId}`;
             inlineKeyboard.push([{ text: "Verify Now ✅", web_app: { url: verifyUrl } }]);
@@ -155,17 +156,17 @@ bot.on('message', async (msg) => {
     // Main Menu Logic
     if (text === 'Start Earning 💸') {
         bot.sendMessage(chatId, "👇 Choose an option to start earning:", earningMenu);
-    } 
+    }
     else if (text === 'Balance 💰') {
         const doc = await db.collection('users').doc(userId).get();
         const data = doc.exists ? doc.data() : {};
-        
+
         const dollarBal = (data.balance || 0).toFixed(5);
         const buxBal = (data.tasksCompleted || 0).toFixed(2);
 
         const balanceMsg = `💸 Your current balance is: ${dollarBal}$\n💰 Rewards is: ${buxBal}Bux`;
         bot.sendMessage(chatId, balanceMsg);
-    } 
+    }
     else if (text === 'Refer 👥') {
         const doc = await db.collection('users').doc(userId).get();
         const data = doc.exists ? doc.data() : {};
@@ -182,18 +183,17 @@ bot.on('message', async (msg) => {
         bot.sendMessage(chatId, referMsg, {
             parse_mode: 'HTML',
             reply_markup: {
-                inline_keyboard: [
-                    [{ text: '📋 Copy Refer link', copy_text: { text: referLink } }],[
+                inline_keyboard: [[{ text: '📋 Copy Refer link', copy_text: { text: referLink } }],[
                         { text: '📈 My Referrers', callback_data: 'my_referrers' },
                         { text: '👥 Share Refer link', url: `https://t.me/share/url?url=${encodeURIComponent(referLink)}&text=${shareText}` }
                     ]
                 ]
             }
         });
-    } 
+    }
     else if (text === 'Ads 📊') {
         bot.sendMessage(chatId, `<b><a href="https://t.me/RedExChangerBot/app">Exchange Cryptos to BDT</a></b>`, { parse_mode: 'HTML', disable_web_page_preview: true });
-    } 
+    }
     else if (text === 'Rules 📚') {
         bot.sendMessage(chatId, "📚 Rules:\n1. Do not use multiple accounts.\n2. Complete tasks honestly.");
     }
@@ -236,7 +236,7 @@ bot.on('callback_query', async (query) => {
             const refCode = userDoc.data().referralCode;
 
             const refsSnapshot = await db.collection('users').where('referredBy', '==', refCode).get();
-            
+
             if (refsSnapshot.empty) {
                 bot.answerCallbackQuery(query.id, { text: "You haven't referred anyone yet!", show_alert: true });
                 return;
@@ -251,7 +251,7 @@ bot.on('callback_query', async (query) => {
             });
 
             bot.sendMessage(chatId, msgText, { parse_mode: 'HTML' });
-            bot.answerCallbackQuery(query.id); 
+            bot.answerCallbackQuery(query.id);
 
         } catch (error) {
             console.error(error);
@@ -270,7 +270,7 @@ app.get('/verify', (req, res) => {
 app.post('/api/verify-channel', async (req, res) => {
     const { userId } = req.body;
     const notJoined = await checkForceSub(userId);
-    
+
     if (notJoined === true || notJoined.length === 0) {
         bot.sendMessage(userId, "✅ Verification Successful! Use the menu below.", mainMenu);
         return res.json({ success: true });
@@ -292,8 +292,30 @@ app.get('/api/admin/stats', async (req, res) => {
     }
 });
 
+// ========================================================
+// START: FIXED CODE
+// ========================================================
 app.get('/api/admin/channels', async (req, res) => {
     try {
         const doc = await db.collection('settings').doc('channels').get();
-        if (!doc.exists) return res.json([]);
-        res.json(doc.data().list ||
+        if (!doc.exists) {
+            return res.json([]);
+        }
+        // The line was incomplete. Completed with `[]` as default and closed the function.
+        res.json(doc.data().list || []);
+    } catch (error) {
+        // Added a catch block for robust error handling.
+        console.error("API Error fetching channels:", error);
+        res.status(500).json({ error: 'Failed to fetch channels' });
+    }
+});
+// ========================================================
+// END: FIXED CODE
+// ========================================================
+
+// =================================================================
+// 10. Start Server (This was missing)
+// =================================================================
+app.listen(PORT, () => {
+    console.log(`✅ Server is running and listening on port ${PORT}`);
+});
