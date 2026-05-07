@@ -1,12 +1,56 @@
+require('dotenv').config();
+const express = require('express');
+const path = require('path');
+const TelegramBot = require('node-telegram-bot-api');
+const admin = require('firebase-admin');
+const { v4: uuidv4 } = require('uuid');
+const cors = require('cors');
+
 // =================================================================
-// টেলিগ্রাম বট কীবোর্ড মেনু
+// 1. Token Check & Bot Initialization
+// =================================================================
+const token = process.env.BOT_TOKEN;
+if (!token) {
+    console.error("❌ BOT_TOKEN is missing! Please set it in Render Environment Variables.");
+    process.exit(1);
+}
+const bot = new TelegramBot(token, { polling: true });
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// =================================================================
+// 2. Firebase Setup (With Error Handling)
+// =================================================================
+try {
+    if (!process.env.FIREBASE_CREDENTIALS) {
+        throw new Error("❌ FIREBASE_CREDENTIALS environment variable is missing!");
+    }
+    const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+    });
+    console.log("✅ Firebase initialized successfully.");
+} catch (error) {
+    console.error("❌ Firebase Initialization Error:", error.message);
+    process.exit(1);
+}
+const db = admin.firestore();
+
+// =================================================================
+// 3. Middleware
+// =================================================================
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname)));
+
+// =================================================================
+// 4. টেলিগ্রাম বট কীবোর্ড মেনু
 // =================================================================
 const mainMenu = {
     reply_markup: {
         keyboard: [
-            [{ text: 'Start Earning 💸' }],
-            [{ text: 'Balance 💰' }, { text: 'Refer 👥' }],
-            [{ text: 'Ads 📊' }, { text: 'Rules 📚' }]
+            [{ text: 'Start Earning 💸' }],[{ text: 'Balance 💰' }, { text: 'Refer 👥' }],[{ text: 'Ads 📊' }, { text: 'Rules 📚' }]
         ],
         resize_keyboard: true
     }
@@ -14,41 +58,101 @@ const mainMenu = {
 
 const earningMenu = {
     reply_markup: {
-        keyboard: [
-            [{ text: '📢 Join Chats' }, { text: '🤖 Message Bots' }],
-            [{ text: '🎁 Daily Claim' }, { text: '👨‍💻 Micro Tasks' }],
-            [{ text: '🔙 Back' }]
+        keyboard: [[{ text: '📢 Join Chats' }, { text: '🤖 Message Bots' }],[{ text: '🎁 Daily Claim' }, { text: '👨‍💻 Micro Tasks' }],[{ text: '🔙 Back' }]
         ],
         resize_keyboard: true
     }
 };
 
 // =================================================================
-// টেলিগ্রাম বট লজিক (/start)
+// 5. ফোর্স সাবস্ক্রাইব (Channel Join Check) ফাংশন
 // =================================================================
-// (আপনার আগের /start লজিক ঠিক থাকবে, শুধু শেষে replyKeyboard এর জায়গায় mainMenu দিবেন)
+async function checkForceSub(userId) {
+    try {
+        const channelsSnapshot = await db.collection('settings').doc('channels').get();
+        if (!channelsSnapshot.exists) return true; 
+
+        const channels = channelsSnapshot.data().list || [];
+        let notJoinedChannels =[];
+
+        for (let channel of channels) {
+            try {
+                const chatMember = await bot.getChatMember(channel.channelId, userId);
+                if (chatMember.status === 'left' || chatMember.status === 'kicked') {
+                    notJoinedChannels.push(channel);
+                }
+            } catch (error) {
+                console.log(`Error checking channel ${channel.channelId}:`, error.message);
+            }
+        }
+        return notJoinedChannels;
+    } catch (error) {
+        return true; 
+    }
+}
 
 // =================================================================
-// মেসেজ এবং বাটন ক্লিক হ্যান্ডলার
+// 6. টেলিগ্রাম বট লজিক (/start)
+// =================================================================
+bot.onText(/\/start/, async (msg) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id.toString();
+    const firstName = msg.from.first_name;
+
+    try {
+        const userRef = db.collection('users').doc(userId);
+        const doc = await userRef.get();
+
+        if (!doc.exists) {
+            const referralCode = uuidv4().split('-')[0];
+            await userRef.set({
+                userId, firstName, balance: 0, tasksCompleted: 0,
+                completedTasks:[], referralCode, referralsCount: 0, joinedAt: new Date(),
+            });
+        }
+
+        // চেক চ্যানেল সাবস্ক্রিপশন
+        const notJoined = await checkForceSub(userId);
+
+        if (notJoined !== true && notJoined.length > 0) {
+            let inlineKeyboard = notJoined.map(ch => [{ text: `Join ${ch.name}`, url: ch.url }]);
+            
+            // WebApp Verify Button
+            const verifyUrl = `https://gbuxbot.onrender.com/verify?userId=${userId}`;
+            inlineKeyboard.push([{ text: "Verify Now ✅", web_app: { url: verifyUrl } }]);
+
+            return bot.sendMessage(chatId, `👋 Hello ${firstName}!\n\n⚠️ You must join our official channels to use this bot! After joining, click the Verify Now button.`, {
+                reply_markup: { inline_keyboard: inlineKeyboard }
+            });
+        }
+
+        // যদি সব জয়েন থাকে
+        bot.sendMessage(chatId, `🎉 Welcome back to GBuxBot, ${firstName}!`, mainMenu);
+
+    } catch (error) {
+        console.error(error);
+        bot.sendMessage(chatId, "Sorry, something went wrong.");
+    }
+});
+
+// =================================================================
+// 7. মেসেজ এবং বাটন ক্লিক হ্যান্ডলার
 // =================================================================
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const userId = msg.from.id.toString();
     const text = msg.text;
 
-    // যদি কমান্ড /start হয়, তাহলে এখানে কিছু করবে না (আগের হ্যান্ডলারে কাজ হবে)
-    if (text.startsWith('/start')) return;
+    if (!text || text.startsWith('/start')) return;
 
-    // চেক চ্যানেল সাবস্ক্রিপশন (যদি ইউজার মেনু ব্যবহার করে)
+    // চেক চ্যানেল সাবস্ক্রিপশন
     const notJoined = await checkForceSub(userId);
     if (notJoined !== true && notJoined.length > 0) {
         bot.sendMessage(chatId, "⚠️ You have left our channel! Please send /start to verify again.");
         return;
     }
 
-    // ----------------------------------------------------
     // Main Menu Logic
-    // ----------------------------------------------------
     if (text === 'Start Earning 💸') {
         bot.sendMessage(chatId, "👇 Choose an option to start earning:", earningMenu);
     } 
@@ -56,9 +160,8 @@ bot.on('message', async (msg) => {
         const doc = await db.collection('users').doc(userId).get();
         const data = doc.exists ? doc.data() : {};
         
-        // ব্যালেন্স 5 ডিজিট এবং Bux 2 ডিজিট ফরম্যাট করা
         const dollarBal = (data.balance || 0).toFixed(5);
-        const buxBal = (data.tasksCompleted || 0).toFixed(2); // উদাহরণস্বরূপ টাস্ক কমপ্লিটকে Bux ধরা হলো
+        const buxBal = (data.tasksCompleted || 0).toFixed(2);
 
         const balanceMsg = `💸 Your current balance is: ${dollarBal}$\n💰 Rewards is: ${buxBal}Bux`;
         bot.sendMessage(chatId, balanceMsg);
@@ -69,7 +172,6 @@ bot.on('message', async (msg) => {
         const refCode = data.referralCode || "N/A";
         const totalRefer = data.referralsCount || 0;
 
-        // বটের ইউজারনেম ডায়নামিক ভাবে নেওয়া
         const botInfo = await bot.getMe();
         const botUsername = botInfo.username;
         const referLink = `https://t.me/${botUsername}?start=${refCode}`;
@@ -81,11 +183,8 @@ bot.on('message', async (msg) => {
             parse_mode: 'HTML',
             reply_markup: {
                 inline_keyboard: [
-                    // Copy Text বাটন (Telegram এর নতুন ফিচারে সাপোর্ট করে)
-                    [{ text: '📋 Copy Refer link', copy_text: { text: referLink } }],
-                    [
+                    [{ text: '📋 Copy Refer link', copy_text: { text: referLink } }],[
                         { text: '📈 My Referrers', callback_data: 'my_referrers' },
-                        // Telegram Share Link
                         { text: '👥 Share Refer link', url: `https://t.me/share/url?url=${encodeURIComponent(referLink)}&text=${shareText}` }
                     ]
                 ]
@@ -93,16 +192,13 @@ bot.on('message', async (msg) => {
         });
     } 
     else if (text === 'Ads 📊') {
-        // Ads এ ক্লিকেবল বোল্ড টেক্সট
-        bot.sendMessage(chatId, `<b><a href="https://t.me/RedExChangerBot/app">Exchange Cryptos to BDT</a></b>`, { parse_mode: 'HTML' });
+        bot.sendMessage(chatId, `<b><a href="https://t.me/RedExChangerBot/app">Exchange Cryptos to BDT</a></b>`, { parse_mode: 'HTML', disable_web_page_preview: true });
     } 
     else if (text === 'Rules 📚') {
         bot.sendMessage(chatId, "📚 Rules:\n1. Do not use multiple accounts.\n2. Complete tasks honestly.");
     }
 
-    // ----------------------------------------------------
     // Start Earning (Sub-menu) Logic
-    // ----------------------------------------------------
     else if (text === '📢 Join Chats') {
         bot.sendMessage(chatId, "📢 Join Chats tasks coming soon!");
     }
@@ -113,7 +209,6 @@ bot.on('message', async (msg) => {
         bot.sendMessage(chatId, "🎁 Daily Claim coming soon!");
     }
     else if (text === '👨‍💻 Micro Tasks') {
-        // Micro Tasks এ ক্লিক করলে WebApp ওপেন হবে
         const webAppUrl = `https://gbuxbot.onrender.com/?userId=${userId}`;
         bot.sendMessage(chatId, "Click below to open Micro Tasks and start earning!", {
             reply_markup: {
@@ -122,13 +217,12 @@ bot.on('message', async (msg) => {
         });
     }
     else if (text === '🔙 Back') {
-        // Back এ ক্লিক করলে আবার Main Menu তে ফেরত যাবে
         bot.sendMessage(chatId, "🏠 Returning to Main Menu...", mainMenu);
     }
 });
 
 // =================================================================
-// ইনলাইন বাটন (Callback Query) হ্যান্ডলার
+// 8. ইনলাইন বাটন (Callback Query) হ্যান্ডলার
 // =================================================================
 bot.on('callback_query', async (query) => {
     const userId = query.from.id.toString();
@@ -137,12 +231,10 @@ bot.on('callback_query', async (query) => {
 
     if (data === 'my_referrers') {
         try {
-            // ডাটাবেস থেকে ইউজার চেক করে তার রেফারেল কোড বের করা
             const userDoc = await db.collection('users').doc(userId).get();
             if (!userDoc.exists) return;
             const refCode = userDoc.data().referralCode;
 
-            // যারা এই রেফারেল কোড ব্যবহার করে জয়েন করেছে তাদের খোঁজা (ধরে নিচ্ছি আপনি referredBy ফিল্ড সেভ করেন)
             const refsSnapshot = await db.collection('users').where('referredBy', '==', refCode).get();
             
             if (refsSnapshot.empty) {
@@ -159,7 +251,7 @@ bot.on('callback_query', async (query) => {
             });
 
             bot.sendMessage(chatId, msgText, { parse_mode: 'HTML' });
-            bot.answerCallbackQuery(query.id); // লোডিং স্ট্যাটাস বন্ধ করার জন্য
+            bot.answerCallbackQuery(query.id); 
 
         } catch (error) {
             console.error(error);
@@ -167,3 +259,41 @@ bot.on('callback_query', async (query) => {
         }
     }
 });
+
+// =================================================================
+// 9. Verification & Admin API
+// =================================================================
+app.get('/verify', (req, res) => {
+    res.sendFile(path.join(__dirname, 'verify.html'));
+});
+
+app.post('/api/verify-channel', async (req, res) => {
+    const { userId } = req.body;
+    const notJoined = await checkForceSub(userId);
+    
+    if (notJoined === true || notJoined.length === 0) {
+        bot.sendMessage(userId, "✅ Verification Successful! Use the menu below.", mainMenu);
+        return res.json({ success: true });
+    } else {
+        return res.json({ success: false, message: "You haven't joined all channels!" });
+    }
+});
+
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'indexAdmin.html'));
+});
+
+app.get('/api/admin/stats', async (req, res) => {
+    try {
+        const usersSnapshot = await db.collection('users').count().get();
+        res.json({ totalUsers: usersSnapshot.data().count });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch stats' });
+    }
+});
+
+app.get('/api/admin/channels', async (req, res) => {
+    try {
+        const doc = await db.collection('settings').doc('channels').get();
+        if (!doc.exists) return res.json([]);
+        res.json(doc.data().list ||
