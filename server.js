@@ -183,7 +183,7 @@ bot.on('message', async (msg) => {
         bot.sendMessage(chatId, referMsg, {
             parse_mode: 'HTML',
             reply_markup: {
-                inline_keyboard: [[{ text: '📋 Copy Refer link', copy_text: { text: referLink } }],[
+                inline_keyboard: [[{ text: ' Copy Refer link', copy_text: { text: referLink } }],[
                         { text: '📈 My Referrers', callback_data: 'my_referrers' },
                         { text: '👥 Share Refer link', url: `https://t.me/share/url?url=${encodeURIComponent(referLink)}&text=${shareText}` }
                     ]
