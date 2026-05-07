@@ -16,7 +16,7 @@ if (!token) {
 }
 const bot = new TelegramBot(token, { polling: true });
 
-// [NEW] User state management for conversational flows
+// User state management for conversational flows
 const userStates = {};
 
 const app = express();
@@ -51,7 +51,6 @@ app.use(express.static(path.join(__dirname)));
 // =================================================================
 // 4. টেলিগ্রাম বট কীবোর্ড মেনু
 // =================================================================
-// [MODIFIED] 'Ads 📊' বাটনটি ফিরিয়ে আনা হয়েছে।
 const mainMenu = {
     reply_markup: {
         keyboard: [
@@ -74,7 +73,6 @@ const earningMenu = {
     }
 };
 
-// [NEW] 'Ads' বাটনের জন্য নতুন মেনু
 const adsMenu = {
     reply_markup: {
         keyboard: [
@@ -118,7 +116,6 @@ async function checkForceSub(userId) {
 // 6. টেলিগ্রাম বট লজিক (/start)
 // =================================================================
 bot.onText(/\/start(?: (.+))?/, async (msg, match) => {
-    // ... আগের /start লজিক অপরিবর্তিত ...
     const chatId = msg.chat.id;
     const userId = msg.from.id.toString();
     const firstName = msg.from.first_name;
@@ -181,7 +178,7 @@ bot.on('message', async (msg) => {
 
     if (!text || text.startsWith('/')) return;
 
-    // [NEW] টাস্ক তৈরির কথোপকথন হ্যান্ডেল করার জন্য
+    // টাস্ক তৈরির কথোপকথন হ্যান্ডেল করার জন্য
     if (userStates[userId] && userStates[userId].step) {
         return handleTaskCreation(msg);
     }
@@ -204,10 +201,30 @@ bot.on('message', async (msg) => {
         const balanceMsg = `💸 Your current balance is: <b>${dollarBal}$</b>\n💰 Your Bux rewards are: <b>${buxBal} Bux</b>`;
         bot.sendMessage(chatId, balanceMsg, { parse_mode: 'HTML' });
     } 
+    // [FIXED] 'Refer 👥' বাটনের সম্পূর্ণ কার্যকারিতা ফিরিয়ে আনা হয়েছে
     else if (text === 'Refer 👥') {
-        // ... রেফার লজিক অপরিবর্তিত ...
+        const doc = await db.collection('users').doc(userId).get();
+        const data = doc.exists ? doc.data() : {};
+        const refCode = data.referralCode || "N/A";
+        const totalRefer = data.referralsCount || 0;
+
+        const botInfo = await bot.getMe();
+        const botUsername = botInfo.username;
+        const referLink = `https://t.me/${botUsername}?start=${refCode}`;
+        const shareText = encodeURIComponent(`Start earning with GBuxBot! Click here:`);
+
+        const referMsg = `👥 <b>Your Referral System</b>\n\n🔗 <b>Your Link:</b> <code>${referLink}</code>\n📈 <b>Total Referrals:</b> ${totalRefer}\n\nShare your link with friends to earn more!`;
+
+        bot.sendMessage(chatId, referMsg, {
+            parse_mode: 'HTML',
+            reply_markup: {
+                inline_keyboard: [
+                    [ { text: '📈 My Referrers', callback_data: 'my_referrers' } ],
+                    [ { text: '👥 Share Refer link', url: `https://t.me/share/url?url=${encodeURIComponent(referLink)}&text=${shareText}` } ]
+                ]
+            }
+        });
     }
-    // [MODIFIED] 'Ads 📊' বাটনের নতুন কাজ
     else if (text === 'Ads 📊') {
         bot.sendMessage(chatId, "Here you can manage your ads or create new tasks for other users.", adsMenu);
     }
@@ -219,14 +236,17 @@ bot.on('message', async (msg) => {
     else if (text === 'Create Tasks 📝') {
         startTaskCreation(msg);
     }
-    // ... অন্যান্য মেনু লজিক ...
     else if (text === '🔙 Back') {
+        // userStates থেকে ইউজারকে রিমুভ করা হয়েছে যাতে সে টাস্ক তৈরির প্রসেস থেকে বের হয়ে আসতে পারে।
+        if (userStates[userId]) {
+            delete userStates[userId];
+        }
         bot.sendMessage(chatId, "🏠 Returning to Main Menu...", mainMenu);
     }
 });
 
 // =================================================================
-// 8. [NEW] টাস্ক তৈরির সম্পূর্ণ প্রক্রিয়া
+// 8. টাস্ক তৈরির সম্পূর্ণ প্রক্রিয়া
 // =================================================================
 const TASK_COST_PER_USER = 0.005; // প্রতি টাস্ক পূরণের জন্য খরচ
 
@@ -325,14 +345,87 @@ async function handleTaskCreation(msg) {
     }
 }
 
-
-// ... আপনার বাকি কোড (Callback Query, Verification API, etc.) অপরিবর্তিত থাকবে ...
-// ... শুধু নিশ্চিত করুন যে আপনার কোডের শেষে app.listen() কলটি আছে ...
-
 // =================================================================
-// 9. Verification & Admin API
+// 9. Callback Query, Verification & Admin API
 // =================================================================
-// ... এই অংশটি অপরিবর্তিত ...
+// (এই অংশটি অপরিবর্তিত)
+bot.on('callback_query', async (query) => {
+    const userId = query.from.id.toString();
+    const chatId = query.message.chat.id;
+    const data = query.data;
+
+    if (data === 'my_referrers') {
+        try {
+            const userDoc = await db.collection('users').doc(userId).get();
+            if (!userDoc.exists) return;
+            const refCode = userDoc.data().referralCode;
+
+            const refsSnapshot = await db.collection('users').where('referredBy', '==', refCode).get();
+            
+            if (refsSnapshot.empty) {
+                bot.answerCallbackQuery(query.id, { text: "You haven't referred anyone yet!", show_alert: true });
+                return;
+            }
+
+            let msgText = "📈 <b>Your Referrers List:</b>\n\n";
+            let count = 1;
+            refsSnapshot.forEach(doc => {
+                const u = doc.data();
+                msgText += `${count}. ${u.firstName} (ID: <code>${u.userId}</code>)\n`;
+                count++;
+            });
+
+            bot.sendMessage(chatId, msgText, { parse_mode: 'HTML' });
+            bot.answerCallbackQuery(query.id); 
+
+        } catch (error) {
+            console.error(error);
+            bot.answerCallbackQuery(query.id, { text: "Error loading referrers.", show_alert: true });
+        }
+    }
+});
+
+app.get('/verify', (req, res) => {
+    res.sendFile(path.join(__dirname, 'verify.html'));
+});
+
+app.post('/api/verify-channel', async (req, res) => {
+    const { userId } = req.body;
+    if (!userId) {
+        return res.status(400).json({ success: false, message: "User ID is missing!" });
+    }
+
+    const notJoined = await checkForceSub(userId);
+    
+    if (notJoined === true || (Array.isArray(notJoined) && notJoined.length === 0)) {
+        const userRef = db.collection('users').doc(userId);
+        const userDoc = await userRef.get();
+
+        if (userDoc.exists) {
+            const userData = userDoc.data();
+            if (userData.referredBy && !userData.referralBonusPaid) {
+                const referrerQuery = await db.collection('users').where('referralCode', '==', userData.referredBy).limit(1).get();
+                if (!referrerQuery.empty) {
+                    const referrerDoc = referrerQuery.docs[0];
+                    const referrerRef = db.collection('users').doc(referrerDoc.id);
+
+                    await referrerRef.update({
+                        balance: FieldValue.increment(0.002)
+                    });
+                    await userRef.update({
+                        referralBonusPaid: true
+                    });
+                    bot.sendMessage(referrerDoc.id, `✅ Your referred user, ${userData.firstName}, has successfully verified their account. You have received a bonus of $0.002!`);
+                }
+            }
+        }
+        
+        bot.sendMessage(userId, "✅ Verification Successful! You can now use all the features of the bot.", mainMenu);
+        return res.json({ success: true, message: "Verification successful!" });
+    } else {
+        return res.json({ success: false, message: "You haven't joined all required channels!" });
+    }
+});
 
 
 // =================================================================
