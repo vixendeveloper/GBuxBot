@@ -1,95 +1,57 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Verify Channels</title>
-    <!-- Telegram WebApp SDK -->
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: var(--tg-theme-bg-color, #ffffff);
-            color: var(--tg-theme-text-color, #000000);
-            text-align: center;
-            padding: 50px 20px;
-        }
-        .container {
-            max-width: 400px;
-            margin: auto;
-        }
-        h2 { margin-bottom: 20px; }
-        .btn {
-            background-color: var(--tg-theme-button-color, #3390ec);
-            color: var(--tg-theme-button-text-color, #ffffff);
-            border: none;
-            padding: 15px 30px;
-            font-size: 18px;
-            border-radius: 8px;
-            cursor: pointer;
-            width: 100%;
-            font-weight: bold;
-            transition: 0.3s;
-        }
-        .btn:disabled { background-color: #cccccc; cursor: not-allowed; }
-        #message { margin-top: 15px; font-weight: bold; color: red; }
+        body { font-family: sans-serif; text-align: center; padding: 20px; }
+        .message { margin-top: 20px; font-weight: bold; }
+        .success { color: green; }
+        .error { color: red; }
     </style>
 </head>
 <body>
-
-    <div class="container">
-        <h2>🔄 Channel Verification</h2>
-        <p>Please confirm that you have joined all mandatory channels.</p>
-        <button class="btn" id="verifyBtn" onclick="verifyUser()">Verify Complete ✅</button>
-        <p id="message"></p>
-    </div>
+    <h1>Verifying Your Channel Subscriptions...</h1>
+    <div id="message" class="message">Please wait...</div>
 
     <script>
-        // Telegram WebApp Object
-        const tg = window.Telegram.WebApp;
-        tg.expand(); // WebApp ফুল স্ক্রিন করা
+        document.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const userId = urlParams.get('userId');
+            const messageDiv = document.getElementById('message');
 
-        // URL থেকে userId নেওয়া
-        const urlParams = new URLSearchParams(window.location.search);
-        const userId = urlParams.get('userId');
-
-        async function verifyUser() {
-            const btn = document.getElementById('verifyBtn');
-            const msg = document.getElementById('message');
-            
-            btn.innerText = "Checking...";
-            btn.disabled = true;
-            msg.innerText = "";
+            if (!userId) {
+                messageDiv.textContent = 'Error: User ID not found.';
+                messageDiv.className = 'message error';
+                return;
+            }
 
             try {
-                // সার্ভারে রিকোয়েস্ট পাঠানো
-                const response = await fetch('/api/verify-channel', {
+                const response = await fetch('https://gbuxbot.onrender.com/api/verify-channel', { // Replace with your actual domain
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({ userId: userId })
                 });
 
-                const data = await response.json();
+                const result = await response.json();
 
-                if (data.success) {
-                    btn.innerText = "Verified! Closing...";
-                    btn.style.backgroundColor = "green";
-                    
-                    // ২ সেকেন্ড পর অটোমেটিক WebApp ক্লোজ হয়ে যাবে
-                    setTimeout(() => {
-                        tg.close();
-                    }, 1500);
+                if (result.success) {
+                    messageDiv.textContent = 'Verification Successful! You can now close this window.';
+                    messageDiv.className = 'message success';
+                    // Optionally, close the window automatically after a delay
+                    // setTimeout(() => window.close(), 3000);
                 } else {
-                    btn.innerText = "Verify Complete ✅";
-                    btn.disabled = false;
-                    msg.innerText = "❌ " + data.message;
+                    messageDiv.textContent = `Verification Failed: ${result.message} Please re-join channels and try again.`;
+                    messageDiv.className = 'message error';
                 }
             } catch (error) {
-                btn.innerText = "Verify Complete ✅";
-                btn.disabled = false;
-                msg.innerText = "❌ Network Error! Try again.";
+                console.error('Verification API error:', error);
+                messageDiv.textContent = 'An error occurred while verifying. Please try again later.';
+                messageDiv.className = 'message error';
             }
-        }
+        });
     </script>
 </body>
 </html>
