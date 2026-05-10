@@ -3,114 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bot Admin Panel</title>
+    <title>Admin Panel</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
-        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        h1, h2 { color: #333; text-align: center; }
-        .stats-box { background: #007bff; color: white; padding: 20px; text-align: center; border-radius: 8px; font-size: 24px; margin-bottom: 20px; }
-        .form-group { margin-bottom: 15px; }
-        input { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-        button { background: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; width: 100%; font-size: 16px; }
-        button:hover { background: #218838; }
-        .channel-list { margin-top: 20px; }
-        .channel-item { display: flex; justify-content: space-between; background: #e9ecef; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
-        .delete-btn { background: #dc3545; padding: 5px 10px; width: auto; font-size: 14px; }
-        .delete-btn:hover { background: #c82333; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f4f7f6; color: #333; }
+        .container { max-width: 800px; margin: 0 auto; background-color: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #0056b3; text-align: center; margin-bottom: 25px; }
+        .message { color: #28a745; font-weight: bold; text-align: center; margin-bottom: 20px; padding: 10px; border-radius: 5px; background-color: #e9f7ef; }
+        form { margin-bottom: 30px; padding: 25px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #f9f9f9; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; }
+        input[type="text"], input[type="number"], textarea {
+            width: calc(100% - 24px);
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+        }
+        textarea { resize: vertical; min-height: 80px; }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+        button:hover { background-color: #0056b3; }
+        .alert { color: #dc3545; font-weight: bold; text-align: center; margin-top: 10px;}
+        .button-group { display: flex; gap: 10px; }
+        .button-group button { flex: 1; }
+        .list-section { margin-top: 20px; }
+        .list-item {
+            background-color: #eef;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .list-item span { font-size: 1.1em; }
+        .list-item form { margin: 0; padding: 0; border: none; background: none; display: inline-block; }
+        .list-item input[type="text"] { margin-bottom: 0; width: 80px; }
+        .list-item button { background-color: #dc3545; padding: 5px 10px; font-size: 14px; }
+        .list-item button:hover { background-color: #c82333; }
     </style>
 </head>
 <body>
+    <div class="container">
+        <h1>Admin Panel</h1>
 
-<div class="container">
-    <h1>🤖 Bot Admin Panel</h1>
-    
-    <div class="stats-box">
-        👥 Total Users: <span id="totalUsers">Loading...</span>
+        <div id="messageArea"></div>
+
+        <section class="list-section">
+            <h2>Current Channels</h2>
+            <ul id="channelList">
+                <li>Loading channels...</li>
+            </ul>
+            <form action="/admin/addchannel" method="POST">
+                <label for="channelUsername">Add New Channel (@username):</label>
+                <input type="text" id="channelUsername" name="channelUsername" placeholder="@examplechannel" required>
+                <button type="submit">Add Channel</button>
+            </form>
+        </section>
+
+        <section class="list-section">
+            <h2>Settings</h2>
+            <form action="/admin/setreferreward" method="POST">
+                <label for="referralCoinReward">Referral Coin Reward (SpyCoin):</label>
+                <input type="number" id="referralCoinReward" name="reward" placeholder="10" required>
+                <button type="submit">Set Reward</button>
+            </form>
+        </section>
+
+        <section class="list-section">
+            <h2>Manage Source Codes</h2>
+            <p><em>(Source code management via web panel is more complex and requires more backend logic to handle form submissions for adding/editing/deleting. You can add basic forms here and then implement corresponding POST routes in `server.js`.)</em></p>
+            <p><strong>Add Source Code Form (Example):</strong></p>
+            <form action="/admin/addsourcecode" method="POST">
+                <label for="scCaption">Caption:</label>
+                <input type="text" id="scCaption" name="caption" placeholder="My Awesome Code" required>
+
+                <label for="scImageLink">Image Link (Optional):</label>
+                <input type="text" id="scImageLink" name="imageLink" placeholder="http://example.com/image.jpg">
+
+                <label for="scFileLink">File Link (Required):</label>
+                <input type="text" id="scFileLink" name="fileLink" placeholder="http://example.com/file.zip" required>
+
+                <label for="scUnlockCost">Unlock Cost (SpyCoin):</label>
+                <input type="number" id="scUnlockCost" name="unlockCost" placeholder="50" required>
+
+                <button type="submit">Add Source Code</button>
+            </form>
+            <p><em>You can manually list and remove source codes via Telegram commands, or extend this panel for full management.</em></p>
+        </section>
     </div>
 
-    <h2>Add Must-Join Channel</h2>
-    <div class="form-group">
-        <label>Channel Name</label>
-        <input type="text" id="cName" placeholder="e.g. Official Update Channel">
-    </div>
-    <div class="form-group">
-        <label>Channel ID (e.g. @mychannel or -100123456789)</label>
-        <input type="text" id="cId" placeholder="e.g. @gbux_updates">
-    </div>
-    <div class="form-group">
-        <label>Channel Invite Link</label>
-        <input type="text" id="cUrl" placeholder="https://t.me/gbux_updates">
-    </div>
-    <button onclick="addChannel()">➕ Add Channel</button>
+    <script>
+        const messageArea = document.getElementById('messageArea');
+        const urlParams = new URLSearchParams(window.location.search);
+        const message = urlParams.get('message');
 
-    <h2>Active Required Channels</h2>
-    <div class="channel-list" id="channelList">
-        <!-- Channels will load here -->
-    </div>
-</div>
+        if (message) {
+            const p = document.createElement('p');
+            p.className = 'message';
+            p.textContent = message;
+            messageArea.appendChild(p);
+        }
 
-<script>
-    // সার্ভারের URL (লোকালহোস্ট অথবা Render এর লিঙ্ক)
-    const API_BASE = window.location.origin;
+        // Function to fetch and display channels (for dynamic updates)
+        async function loadChannels() {
+            const channelList = document.getElementById('channelList');
+            channelList.innerHTML = '<li>Loading channels...</li>'; // Show loading indicator
+            try {
+                // This requires a backend endpoint that returns channel list
+                // For now, we will just show a placeholder or rely on Telegram commands
+                // A full implementation would fetch data from your server:
+                // const response = await fetch('/api/channels'); // Example API endpoint
+                // const channels = await response.json();
 
-    async function loadStats() {
-        const res = await fetch(`${API_BASE}/api/admin/stats`);
-        const data = await res.json();
-        document.getElementById('totalUsers').innerText = data.totalUsers;
-    }
+                // For this example, we'll keep it simple and tell user to use Telegram
+                channelList.innerHTML = ''; // Clear loading
+                const channels = await fetch('/api/channels') // Assuming you add this API endpoint later
+                                     .then(res => res.json())
+                                     .catch(() => []); // Fallback to empty if API fails
 
-    async function loadChannels() {
-        const res = await fetch(`${API_BASE}/api/admin/channels`);
-        const channels = await res.json();
-        const listDiv = document.getElementById('channelList');
-        listDiv.innerHTML = '';
+                if (channels.length === 0) {
+                    channelList.innerHTML = '<li>No channels added yet. Use Telegram /addchannel command.</li>';
+                } else {
+                    channels.forEach(channel => {
+                        const li = document.createElement('li');
+                        li.style.cssText = `
+                            background-color: #eef; padding: 15px; margin-bottom: 10px; border-radius: 5px;
+                            display: flex; justify-content: space-between; align-items: center;
+                        `;
+                        li.innerHTML = `
+                            <span>${channel}</span>
+                            <form action="/admin/removechannel" method="POST" style="display:inline-block;">
+                                <input type="hidden" name="channelUsername" value="${channel}">
+                                <button type="submit" style="background-color: #dc3545; padding: 5px 10px; font-size: 14px;">Remove</button>
+                            </form>
+                        `;
+                        channelList.appendChild(li);
+                    });
+                }
+            } catch (error) {
+                console.error("Error loading channels:", error);
+                channelList.innerHTML = '<li>Error loading channels.</li>';
+            }
+        }
 
-        channels.forEach(ch => {
-            listDiv.innerHTML += `
-                <div class="channel-item">
-                    <div>
-                        <strong>${ch.name}</strong> (${ch.channelId})<br>
-                        <a href="${ch.url}" target="_blank">Link</a>
-                    </div>
-                    <button class="delete-btn" onclick='deleteChannel(${JSON.stringify(ch)})'>🗑️ Remove</button>
-                </div>
-            `;
-        });
-    }
+        // To make the remove channel form work, you'd need a POST route on your server like:
+        // app.post('/admin/removechannel', async (req, res) => { ... });
+        // And potentially an API endpoint to list channels dynamically:
+        // app.get('/api/channels', async (req, res) => { const channels = await getChannels(); res.json(channels); });
 
-    async function addChannel() {
-        const name = document.getElementById('cName').value;
-        const channelId = document.getElementById('cId').value;
-        const url = document.getElementById('cUrl').value;
-
-        if(!name || !channelId || !url) return alert("Please fill all fields!");
-
-        await fetch(`${API_BASE}/api/admin/channels`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, channelId, url })
-        });
-        
-        document.getElementById('cName').value = '';
-        document.getElementById('cId').value = '';
-        document.getElementById('cUrl').value = '';
-        loadChannels();
-    }
-
-    async function deleteChannel(channelObj) {
-        if(!confirm("Remove this channel?")) return;
-        await fetch(`${API_BASE}/api/admin/channels/delete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(channelObj)
-        });
-        loadChannels();
-    }
-
-    // পেজ লোড হওয়ার পর ডেটা আনবে
-    loadStats();
-    loadChannels();
-</script>
-
+        // Call loadChannels on page load (if you implement the API endpoints)
+        // document.addEventListener('DOMContentLoaded', loadChannels);
+        // For now, we'll rely on the Telegram Bot commands for channel management.
+    </script>
 </body>
 </html>
