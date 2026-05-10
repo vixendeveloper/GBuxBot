@@ -25,9 +25,9 @@ const sourceCodesRef = db.collection('sourceCodes');
 const settingsRef = db.collection('botSettings').doc('settings');
 
 // --- Telegram Bot Setup ---
-const token = process.env.BOT_BOT_TOKEN; // Renamed to avoid confusion with previous POST method
+const token = process.env.BOT_TOKEN;
 const botUsername = process.env.BOT_USERNAME;
-const adminUserId = parseInt(process.env.ADMIN_USER_ID); // Use the Admin Chat ID from environment variable
+const adminUserId = parseInt(process.env.ADMIN_USER_ID);
 
 if (!token) {
     console.error("TELEGRAM_BOT_TOKEN is not set.");
@@ -38,7 +38,7 @@ if (!botUsername) {
     process.exit(1);
 }
 if (isNaN(adminUserId)) {
-    console.error("ADMIN_USER_ID is not set or invalid. Please ensure it's a number.");
+    console.error("ADMIN_USER_ID is not set or invalid.");
     process.exit(1);
 }
 
@@ -52,7 +52,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // --- State Management for Admin Actions ---
-const adminState = {}; // Stores intermediate data for multi-step admin actions
+// Stores intermediate data for multi-step admin actions
+const adminState = {};
 
 // --- Helper Functions ---
 
@@ -83,8 +84,10 @@ async function getChannels() {
 
 async function addChannel(channelUsername, channelLink) {
     const currentChannels = await getChannels();
+    // Check if username already exists
     const existingChannel = currentChannels.find(c => c.username === channelUsername);
-    if (existingChannel) return false;
+    if (existingChannel) return false; // Already exists
+
     await channelsRef.set({ list: [...currentChannels, { username: channelUsername, link: channelLink }] });
     return true;
 }
@@ -103,11 +106,13 @@ async function getSourceCodes() {
     const snapshot = await sourceCodesRef.get();
     const sourceCodes = [];
     snapshot.forEach(doc => { sourceCodes.push({ id: doc.id, ...doc.data() }); });
+    // Sort by ID numerically
     return sourceCodes.sort((a, b) => parseInt(a.id) - parseInt(b.id));
 }
 
 async function addSourceCode(data) {
-    const newId = Date.now().toString(); // Consider a more robust ID strategy for production
+    // Use a more robust ID generation if Date.now() can collide
+    const newId = Date.now().toString();
     await sourceCodesRef.doc(newId).set({ ...data, id: newId });
     return newId;
 }
@@ -128,6 +133,7 @@ async function setReferralCoinReward(reward) {
 
 async function checkChannelMembership(userId, channel) {
     try {
+        // 'channel' here is the object { username: '@...', link: '...' }
         const chatMember = await bot.getChatMember(channel.username, userId);
         return ['member', 'administrator', 'creator'].includes(chatMember.status);
     } catch (error) {
@@ -170,7 +176,7 @@ bot.onText(/\/start(?: (\d+))?/, async (msg, match) => {
 
     for (const channel of channels) {
         const isJoined = await checkChannelMembership(userId, channel);
-        userJoinedChannels[channel.username] = isJoined;
+        userJoinedChannels[channel.username] = isJoined; // Use username as key
         if (!isJoined) channelsToJoin.push(channel);
     }
 
@@ -193,11 +199,11 @@ async function showMainMenu(chatId, userId) {
         [{ text: '✨ Source Codes' }],
         [{ text: '💰 Balance' }, { text: '🔗 Refer' }]
     ];
-    bot.sendMessage(chatId, '🌟 *Welcome to the Main Menu!*', {
+    bot.sendMessage(chatId, '🌟 *Welcome to the Main Menu!*', { // Bolded welcome message
         parse_mode: 'Markdown',
         reply_markup: {
             keyboard: keyboard,
-            one_time_keyboard: true,
+            one_time_keyboard: true, // This will remove the keyboard after the user selects an option
             resize_keyboard: true
         }
     });
@@ -206,7 +212,7 @@ async function showMainMenu(chatId, userId) {
     bot.sendMessage(chatId, adsMessage, { parse_mode: 'Markdown' });
 }
 
-// --- Callback Query Handler (for Source Codes and specific inline buttons) ---
+// --- Callback Query Handler ---
 bot.on('callback_query', async (callbackQuery) => {
     const message = callbackQuery.message;
     const userId = callbackQuery.from.id;
@@ -268,10 +274,12 @@ bot.onText(/✨ Source Codes/, async (msg) => {
 async function showBalance(chatId, userId) {
     const user = await getUser(userId);
     const supportGroupLink = "https://t.me/+rYxM4JzaTDE5MWM1";
+    // Removed total refer count from here
     const balanceInfo = `Your current SpyCoin balance is: ${user.balance} SpyCoin 💰\n\n*User Information:*\nChat ID: \`${userId}\``;
 
     const keyboard = [
         [{ text: 'Join Support Group', url: supportGroupLink }],
+        // Removed "Back to Main Menu" inline button from Balance
     ];
 
     bot.sendMessage(chatId, balanceInfo, {
@@ -290,9 +298,12 @@ async function showReferralInfo(chatId, userId) {
 
     const joinGroupLink = "https://t.me/+7QEDhovtqJ4yZTA1";
     const keyboard = [
-        [{ text: 'Join Refer Link Share Group', url: joinGroupLink }],
+        // Removed "Copy Referral Link" option as requested
+        [{ text: 'Join Refer Link Share Group', url: joinGroupLink }], // New button
+        // Removed "Back to Main Menu" inline button from Refer
     ];
 
+    // Removed total refer count from this message
     bot.sendMessage(chatId, `🔗 Your Referral Link: \n${referralLink}\n\nEarn ${referralReward} SpyCoin for each successful referral!`, {
         reply_markup: {
             inline_keyboard: keyboard
@@ -339,12 +350,7 @@ async function viewSourceCode(chatId, userId, sourceCodeId) {
     let inlineKeyboard = [];
 
     if (isUnlocked) {
-        // If fileId is stored, use sendDocument. If fileLink, use URL.
-        if (sourceCode.fileId) {
-            inlineKeyboard.push([{ text: 'Open Source Code', callback_data: `send_file_${sourceCode.id}` }]);
-        } else if (sourceCode.fileLink) {
-            inlineKeyboard.push([{ text: 'Open Source Code', url: sourceCode.fileLink }]);
-        }
+        inlineKeyboard.push([{ text: 'Open Source Code', url: sourceCode.fileLink }]);
     } else {
         inlineKeyboard.push([{ text: 'Unlock File', callback_data: `unlock_source_code_${sourceCode.id}` }]);
         inlineKeyboard.push([{ text: 'Earn More Coins', callback_data: 'earn' }]);
@@ -365,41 +371,6 @@ async function viewSourceCode(chatId, userId, sourceCodeId) {
     bot.sendMessage(chatId, messageText, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: inlineKeyboard } });
 }
 
-// Handler to send file via file_id when unlocked
-bot.onText(/send_file_(\d+)/, async (msg, match) => {
-    const sourceCodeId = match[1];
-    const userId = msg.from.id;
-    const sourceCodes = await getSourceCodes();
-    const sourceCode = sourceCodes.find(sc => sc.id === sourceCodeId);
-
-    if (!sourceCode) {
-        bot.sendMessage(msg.chat.id, "Source code not found.");
-        return;
-    }
-
-    if (!sourceCode.fileId) {
-        bot.sendMessage(msg.chat.id, "File not available for this source code.");
-        return;
-    }
-
-    // Check if user has enough balance (re-check or assume they do since they unlocked)
-    const user = await getUser(userId);
-    if (user.balance < sourceCode.unlockCost) {
-         bot.sendMessage(msg.chat.id, `You need ${sourceCode.unlockCost} SpyCoin to unlock this. Your current balance is ${user.balance} SpyCoin.`);
-         return;
-    }
-
-    try {
-        await bot.sendDocument(msg.chat.id, sourceCode.fileId, { caption: `Here is your source code: ${sourceCode.caption}` });
-        // Optionally, remove the file sending button or update message
-        bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: msg.chat.id, message_id: msg.message_id });
-    } catch (error) {
-        console.error("Error sending document:", error);
-        bot.sendMessage(msg.chat.id, "Failed to send the file. Please contact support.");
-    }
-});
-
-
 async function unlockSourceCode(chatId, userId, sourceCodeId, messageId) {
     let user = await getUser(userId);
     const sourceCodes = await getSourceCodes();
@@ -414,26 +385,11 @@ async function unlockSourceCode(chatId, userId, sourceCodeId, messageId) {
         user.balance -= sourceCode.unlockCost;
         await updateUser(userId, { balance: user.balance });
 
-        // Construct the message with unlock confirmation and actions
-        let unlockedMessageText = `✨ **${sourceCode.caption}** ✨\n\n`;
-        if (sourceCode.imageLink) unlockedMessageText += `[Image Preview](${sourceCode.imageLink})\n\n`;
-        unlockedMessageText += `Unlocked successfully! \n`;
-
-        let unlockedKeyboard = [];
-        if (sourceCode.fileId) {
-            unlockedKeyboard.push([{ text: 'Open Source Code', callback_data: `send_file_${sourceCode.id}` }]);
-        } else if (sourceCode.fileLink) {
-            unlockedKeyboard.push([{ text: 'Open Source Code', url: sourceCode.fileLink }]);
-        } else {
-            unlockedMessageText += "File link or ID not available.";
-        }
-        unlockedMessageText += `\nCost: ${sourceCode.unlockCost} SpyCoin deducted.`;
-
-        await bot.editMessageText(unlockedMessageText, {
+        await bot.editMessageText(`✨ **${sourceCode.caption}** ✨\n\n${sourceCode.imageLink ? `[Image Preview](${sourceCode.imageLink})\n\n` : ''}Unlocked! Here is your link:\n[Open Source Code](${sourceCode.fileLink})`, {
             chat_id: chatId,
             message_id: messageId,
             parse_mode: 'Markdown',
-            reply_markup: { inline_keyboard: unlockedKeyboard }
+            reply_markup: { inline_keyboard: [] }
         });
     } else {
         bot.sendMessage(chatId, `You need ${sourceCode.unlockCost} SpyCoin to unlock this. Your current balance is ${user.balance} SpyCoin.`, {
@@ -447,10 +403,9 @@ async function unlockSourceCode(chatId, userId, sourceCodeId, messageId) {
     }
 }
 
-// --- Admin Panel Entry Point ---
+// --- Admin Panel Access Command ---
 bot.onText(/\/admin/, async (msg) => {
     const userId = msg.from.id;
-    // Check if the user ID matches the authorized adminUserId from environment variables
     if (userId !== adminUserId) {
         return bot.sendMessage(msg.chat.id, "You are not authorized to access the admin panel.");
     }
@@ -472,24 +427,7 @@ bot.onText(/\/admin/, async (msg) => {
 
 // --- Admin Panel Command Handlers (using keyboard buttons) ---
 
-// Navigation Back to Admin Menu
-const navigateBackToAdminMenu = async (chatId) => {
-    const adminMenuKeyboard = [
-        [{ text: 'Manage Source Codes' }],
-        [{ text: 'Manage Channels' }],
-        [{ text: 'Manage Users' }],
-        [{ text: 'Settings' }]
-    ];
-    bot.sendMessage(chatId, 'Returning to Admin Panel...', {
-        reply_markup: {
-            keyboard: adminMenuKeyboard,
-            one_time_keyboard: true,
-            resize_keyboard: true
-        }
-    });
-};
-
-// Manage Source Codes Menu
+// Handle 'Manage Source Codes' from Admin Menu
 bot.onText(/Manage Source Codes/, async (msg) => {
     const adminMenuKeyboard = [
         [{ text: 'Add New Source Code' }],
@@ -505,13 +443,13 @@ bot.onText(/Manage Source Codes/, async (msg) => {
     });
 });
 
-// Add New Source Code Flow
+// Handle 'Add New Source Code'
 bot.onText(/Add New Source Code/, (msg) => {
     adminState[msg.from.id] = { step: 'awaiting_image' };
     bot.sendMessage(msg.chat.id, 'Please send the Image for the source code.');
 });
 
-// Handle Image Upload
+// Handler for images sent during Add New Source Code flow
 bot.on('photo', async (msg) => {
     const userId = msg.from.id;
     if (adminState[userId] && adminState[userId].step === 'awaiting_image') {
@@ -522,7 +460,7 @@ bot.on('photo', async (msg) => {
     }
 });
 
-// Handle Text Input for Add Source Code Steps
+// Handler for text messages during Add New Source Code flow
 bot.on('text', async (msg) => {
     const userId = msg.from.id;
     const chatId = msg.chat.id;
@@ -530,12 +468,15 @@ bot.on('text', async (msg) => {
 
     if (!adminState[userId]) return; // Not in an admin flow
 
-    // --- Add New Source Code Steps ---
+    // --- Handle Add New Source Code Steps ---
     if (adminState[userId].step === 'awaiting_caption') {
         adminState[userId].caption = text;
         adminState[userId].step = 'awaiting_file';
         bot.sendMessage(chatId, 'Caption received. Please send the File (document) for the source code.');
     } else if (adminState[userId].step === 'awaiting_file') {
+        // Handle file upload - requires bot to download and save, or store file_id
+        // For simplicity, we'll ask for a file link if direct upload is too complex.
+        // If user sends a document, capture its file_id.
         if (msg.document) {
             adminState[userId].fileId = msg.document.file_id;
             adminState[userId].fileName = msg.document.file_name;
@@ -550,6 +491,7 @@ bot.on('text', async (msg) => {
             adminState[userId].unlockCost = cost;
             adminState[userId].step = 'confirmation';
 
+            // Confirm details before saving
             let confirmationMessage = `Please confirm:\nImage ID: ${adminState[userId].imageFileId || 'N/A'}\nCaption: ${adminState[userId].caption}\nFile Name: ${adminState[userId].fileName || 'N/A'}\nFile ID: ${adminState[userId].fileId || 'N/A'}\nUnlock Cost: ${adminState[userId].unlockCost}\n\nType 'confirm' to save, or 'cancel' to abort.`;
             bot.sendMessage(chatId, confirmationMessage);
         } else {
@@ -559,6 +501,7 @@ bot.on('text', async (msg) => {
         if (text.toLowerCase() === 'confirm') {
             try {
                 const newSourceCode = {
+                    // Use a consistent ID generation strategy if possible
                     id: Date.now().toString(),
                     caption: adminState[userId].caption,
                     imageFileId: adminState[userId].imageFileId || null,
@@ -572,7 +515,7 @@ bot.on('text', async (msg) => {
                 console.error("Error adding source code:", error);
                 bot.sendMessage(chatId, 'Failed to add source code. Please check logs.');
             } finally {
-                delete adminState[userId];
+                delete adminState[userId]; // Clean up state
             }
         } else if (text.toLowerCase() === 'cancel') {
             bot.sendMessage(chatId, 'Operation cancelled.');
@@ -582,8 +525,8 @@ bot.on('text', async (msg) => {
         }
     }
 
-    // --- Remove Source Code Confirmation ---
-    else if (adminState[userId].step === 'awaiting_remove_confirmation') {
+    // --- Handle Remove Source Code Flow ---
+    if (adminState[userId].step === 'awaiting_remove_confirmation') {
         if (text.toLowerCase() === 'yes') {
             const sourceCodeIdToRemove = adminState[userId].sourceCodeIdToRemove;
             try {
@@ -603,8 +546,8 @@ bot.on('text', async (msg) => {
         }
     }
 
-    // --- Set Referral Reward ---
-    else if (adminState[userId].step === 'awaiting_referral_reward') {
+    // --- Handle Set Referral Reward ---
+    if (adminState[userId].step === 'awaiting_referral_reward') {
         const reward = parseInt(text);
         if (!isNaN(reward) && reward >= 0) {
             await setReferralCoinReward(reward);
@@ -615,8 +558,8 @@ bot.on('text', async (msg) => {
         }
     }
 
-    // --- Add/Remove User Balance ---
-    else if (adminState[userId].step === 'awaiting_user_id_for_balance') {
+    // --- Handle Add/Remove User Balance ---
+    if (adminState[userId].step === 'awaiting_user_id_for_balance') {
         const targetUserId = parseInt(text);
         if (!isNaN(targetUserId)) {
             adminState[userId].targetUserId = targetUserId;
@@ -645,8 +588,8 @@ bot.on('text', async (msg) => {
         }
     }
 
-    // --- Add Channel Steps ---
-    else if (adminState[userId].step === 'awaiting_channel_username_for_add') {
+    // --- Handle Add Channel ---
+    if (adminState[userId].step === 'awaiting_channel_username_for_add') {
         if (!text.startsWith('@')) return bot.sendMessage(chatId, 'Invalid channel username. It must start with "@".');
         adminState[userId].channelUsername = text;
         adminState[userId].step = 'awaiting_channel_link_for_add';
@@ -669,17 +612,17 @@ bot.on('text', async (msg) => {
     }
 });
 
-
 // --- Admin Menu Navigation Handlers ---
 
-// Manage Source Codes Menu
-bot.onText(/Manage Source Codes/, async (msg) => {
+// Back to Admin Menu
+bot.onText(/Back to Admin Menu/, (msg) => {
     const adminMenuKeyboard = [
-        [{ text: 'Add New Source Code' }],
-        [{ text: 'Remove Source Code' }],
-        [{ text: 'Back to Admin Menu' }]
+        [{ text: 'Manage Source Codes' }],
+        [{ text: 'Manage Channels' }],
+        [{ text: 'Manage Users' }],
+        [{ text: 'Settings' }]
     ];
-    bot.sendMessage(msg.chat.id, 'Choose an action for Source Codes:', {
+    bot.sendMessage(msg.chat.id, '🌟 Welcome back to the Admin Panel!', {
         reply_markup: {
             keyboard: adminMenuKeyboard,
             one_time_keyboard: true,
@@ -688,7 +631,78 @@ bot.onText(/Manage Source Codes/, async (msg) => {
     });
 });
 
-// Remove Source Code Menu
+// Handle 'Manage Channels' from Admin Menu
+bot.onText(/Manage Channels/, async (msg) => {
+    const channelAdminKeyboard = [
+        [{ text: 'Add New Channel' }],
+        [{ text: 'Remove Channel' }],
+        [{ text: 'List Channels' }],
+        [{ text: 'Back to Admin Menu' }]
+    ];
+    bot.sendMessage(msg.chat.id, 'Choose an action for Channels:', {
+        reply_markup: {
+            keyboard: channelAdminKeyboard,
+            one_time_keyboard: true,
+            resize_keyboard: true
+        }
+    });
+});
+
+// Handle 'Add New Channel'
+bot.onText(/Add New Channel/, (msg) => {
+    adminState[msg.from.id] = { step: 'awaiting_channel_username_for_add' };
+    bot.sendMessage(msg.chat.id, 'Please send the Channel Username (e.g., @yourchannelname).');
+});
+
+// Handle 'Remove Channel'
+bot.onText(/Remove Channel/, async (msg) => {
+    const channels = await getChannels();
+    if (channels.length === 0) {
+        return bot.sendMessage(msg.chat.id, 'No channels added yet.');
+    }
+    const removeChannelKeyboard = channels.map(channel => [
+        { text: `Remove ${channel.username}` } // Button text includes username
+    ]);
+    removeChannelKeyboard.push([{ text: 'Back to Channel Admin Menu' }]);
+    bot.sendMessage(msg.chat.id, 'Select a channel to remove:', {
+        reply_markup: {
+            keyboard: removeChannelKeyboard,
+            one_time_keyboard: true,
+            resize_keyboard: true
+        }
+    });
+});
+
+// Process removal of a channel after button press
+bot.onText(/Remove @.+/, async (msg) => {
+    const channelUsernameToRemove = msg.text.replace('Remove ', '');
+    const removed = await removeChannel(channelUsernameToRemove);
+    if (removed) {
+        bot.sendMessage(msg.chat.id, `${channelUsernameToRemove} removed successfully.`);
+    } else {
+        bot.sendMessage(msg.chat.id, `${channelUsernameToRemove} not found.`);
+    }
+    // Reset admin state or return to menu
+    delete adminState[msg.from.id];
+    // Optionally show channel admin menu again
+    const channelAdminKeyboard = [[{ text: 'Add New Channel' }], [{ text: 'Remove Channel' }], [{ text: 'List Channels' }], [{ text: 'Back to Admin Menu' }]];
+    bot.sendMessage(msg.chat.id, 'Choose an action for Channels:', { reply_markup: { keyboard: channelAdminKeyboard, one_time_keyboard: true, resize_keyboard: true } });
+});
+
+// Handle 'List Channels'
+bot.onText(/List Channels/, async (msg) => {
+    const channels = await getChannels();
+    if (channels.length === 0) {
+        bot.sendMessage(msg.chat.id, 'No channels added yet.');
+    } else {
+        let message = "Current Channels:\n";
+        channels.forEach(c => message += `- ${c.username} (${c.link})\n`);
+        bot.sendMessage(msg.chat.id, message);
+    }
+});
+
+
+// Handle 'Remove Source Code'
 bot.onText(/Remove Source Code/, async (msg) => {
     const sourceCodes = await getSourceCodes();
     if (sourceCodes.length === 0) {
@@ -707,83 +721,14 @@ bot.onText(/Remove Source Code/, async (msg) => {
     });
 });
 
-// Process Removal of Source Code
+// Process removal of source code after button press
 bot.onText(/Remove SC ID: (\d+)/, async (msg, match) => {
     const sourceCodeIdToRemove = match[1];
-    // Store the ID to confirm removal
     adminState[msg.from.id] = { step: 'awaiting_remove_confirmation', sourceCodeIdToRemove: sourceCodeIdToRemove };
     bot.sendMessage(msg.chat.id, `Are you sure you want to remove Source Code ID ${sourceCodeIdToRemove}? Type 'yes' or 'no'.`);
 });
 
-// Handle Channel Management Menu
-bot.onText(/Manage Channels/, async (msg) => {
-    const channelAdminKeyboard = [
-        [{ text: 'Add New Channel' }],
-        [{ text: 'Remove Channel' }],
-        [{ text: 'List Channels' }],
-        [{ text: 'Back to Admin Menu' }]
-    ];
-    bot.sendMessage(msg.chat.id, 'Choose an action for Channels:', {
-        reply_markup: {
-            keyboard: channelAdminKeyboard,
-            one_time_keyboard: true,
-            resize_keyboard: true
-        }
-    });
-});
-
-// Add New Channel Flow
-bot.onText(/Add New Channel/, (msg) => {
-    adminState[msg.from.id] = { step: 'awaiting_channel_username_for_add' };
-    bot.sendMessage(msg.chat.id, 'Please send the Channel Username (e.g., @yourchannelname).');
-});
-
-// Remove Channel Flow
-bot.onText(/Remove Channel/, async (msg) => {
-    const channels = await getChannels();
-    if (channels.length === 0) {
-        return bot.sendMessage(msg.chat.id, 'No channels added yet.');
-    }
-    const removeChannelKeyboard = channels.map(channel => [
-        { text: `Remove ${channel.username}` }
-    ]);
-    removeChannelKeyboard.push([{ text: 'Back to Channel Admin Menu' }]);
-    bot.sendMessage(msg.chat.id, 'Select a channel to remove:', {
-        reply_markup: {
-            keyboard: removeChannelKeyboard,
-            one_time_keyboard: true,
-            resize_keyboard: true
-        }
-    });
-});
-
-// Process Channel Removal
-bot.onText(/Remove @.+/, async (msg) => {
-    const channelUsernameToRemove = msg.text.replace('Remove ', '');
-    const removed = await removeChannel(channelUsernameToRemove);
-    if (removed) {
-        bot.sendMessage(msg.chat.id, `${channelUsernameToRemove} removed successfully.`);
-    } else {
-        bot.sendMessage(msg.chat.id, `${channelUsernameToRemove} not found.`);
-    }
-    // After action, return to channel management menu
-    const channelAdminKeyboard = [[{ text: 'Add New Channel' }], [{ text: 'Remove Channel' }], [{ text: 'List Channels' }], [{ text: 'Back to Admin Menu' }]];
-    bot.sendMessage(msg.chat.id, 'Choose an action for Channels:', { reply_markup: { keyboard: channelAdminKeyboard, one_time_keyboard: true, resize_keyboard: true } });
-});
-
-// List Channels
-bot.onText(/List Channels/, async (msg) => {
-    const channels = await getChannels();
-    if (channels.length === 0) {
-        bot.sendMessage(msg.chat.id, 'No channels added yet.');
-    } else {
-        let message = "Current Channels:\n";
-        channels.forEach(c => message += `- ${c.username} (${c.link})\n`);
-        bot.sendMessage(msg.chat.id, message);
-    }
-});
-
-// Handle Settings Menu
+// Handle 'Set Referral Reward'
 bot.onText(/Settings/, async (msg) => {
     const settingsKeyboard = [
         [{ text: 'Set Referral Reward' }],
@@ -798,13 +743,12 @@ bot.onText(/Settings/, async (msg) => {
     });
 });
 
-// Set Referral Reward
 bot.onText(/Set Referral Reward/, (msg) => {
     adminState[msg.from.id] = { step: 'awaiting_referral_reward' };
     bot.sendMessage(msg.chat.id, 'Enter the new referral reward amount (in SpyCoin):');
 });
 
-// Handle Manage Users Menu
+// Handle 'Manage Users'
 bot.onText(/Manage Users/, async (msg) => {
     const userAdminKeyboard = [
         [{ text: 'Add/Remove User Balance' }],
@@ -819,41 +763,60 @@ bot.onText(/Manage Users/, async (msg) => {
     });
 });
 
-// Add/Remove User Balance Flow
 bot.onText(/Add\/Remove User Balance/, (msg) => {
     adminState[msg.from.id] = { step: 'awaiting_user_id_for_balance' };
     bot.sendMessage(msg.chat.id, 'Please enter the User ID (Chat ID) of the user whose balance you want to modify.');
 });
 
-// --- Navigation Back to Previous Menus ---
+// --- General Admin Menu Navigation ---
 bot.onText(/Back to Source Code Admin Menu/, async (msg) => {
-    // Go back to Manage Source Codes menu
-    const adminMenuKeyboard = [[{ text: 'Add New Source Code' }], [{ text: 'Remove Source Code' }], [{ text: 'Back to Admin Menu' }]];
-    bot.sendMessage(msg.chat.id, 'Returning to Source Code Management...', { reply_markup: { keyboard: adminMenuKeyboard, one_time_keyboard: true, resize_keyboard: true } });
+    const adminMenuKeyboard = [
+        [{ text: 'Manage Source Codes' }],
+        [{ text: 'Manage Channels' }],
+        [{ text: 'Manage Users' }],
+        [{ text: 'Settings' }]
+    ];
+    bot.sendMessage(msg.chat.id, 'Returning to Admin Panel...', {
+        reply_markup: {
+            keyboard: adminMenuKeyboard,
+            one_time_keyboard: true,
+            resize_keyboard: true
+        }
+    });
 });
 
 bot.onText(/Back to Channel Admin Menu/, async (msg) => {
-    // Go back to Manage Channels menu
-    const channelAdminKeyboard = [[{ text: 'Add New Channel' }], [{ text: 'Remove Channel' }], [{ text: 'List Channels' }], [{ text: 'Back to Admin Menu' }]];
-    bot.sendMessage(msg.chat.id, 'Returning to Channel Management...', { reply_markup: { keyboard: channelAdminKeyboard, one_time_keyboard: true, resize_keyboard: true } });
+     const adminMenuKeyboard = [
+        [{ text: 'Manage Source Codes' }],
+        [{ text: 'Manage Channels' }],
+        [{ text: 'Manage Users' }],
+        [{ text: 'Settings' }]
+    ];
+    bot.sendMessage(msg.chat.id, 'Returning to Admin Panel...', {
+        reply_markup: {
+            keyboard: adminMenuKeyboard,
+            one_time_keyboard: true,
+            resize_keyboard: true
+        }
+    });
 });
 
 bot.onText(/Back to Settings/, async (msg) => {
-    // Go back to Settings menu
-    const settingsKeyboard = [[{ text: 'Set Referral Reward' }], [{ text: 'Back to Admin Menu' }]];
-    bot.sendMessage(msg.chat.id, 'Returning to Settings...', { reply_markup: { keyboard: settingsKeyboard, one_time_keyboard: true, resize_keyboard: true } });
+     const adminMenuKeyboard = [
+        [{ text: 'Manage Source Codes' }],
+        [{ text: 'Manage Channels' }],
+        [{ text: 'Manage Users' }],
+        [{ text: 'Settings' }]
+    ];
+    bot.sendMessage(msg.chat.id, 'Returning to Admin Panel...', {
+        reply_markup: {
+            keyboard: adminMenuKeyboard,
+            one_time_keyboard: true,
+            resize_keyboard: true
+        }
+    });
 });
 
-bot.onText(/Back to User Admin Menu/, async (msg) => {
-    // Go back to Manage Users menu
-    const userAdminKeyboard = [[{ text: 'Add/Remove User Balance' }], [{ text: 'Back to Admin Menu' }]];
-    bot.sendMessage(msg.chat.id, 'Returning to User Management...', { reply_markup: { keyboard: userAdminKeyboard, one_time_keyboard: true, resize_keyboard: true } });
-});
-
-// --- General Admin Menu Navigation ---
-bot.onText(/Back to Admin Menu/, async (msg) => {
-    await navigateBackToAdminMenu(msg.chat.id);
-});
 
 // --- Error Handling ---
 bot.on('polling_error', (error) => { console.error('Polling error:', error.code, error.message); });
@@ -863,12 +826,27 @@ bot.on('error', (error) => { console.error('General error:', error); });
 
 // --- Start Server and Bot ---
 app.get('/admin', (req, res) => {
-    res.redirect('/admin.html');
+    // Redirect to the actual admin HTML if needed, or just serve bot commands
+    res.redirect('/admin.html'); // Assuming admin.html is in public folder
 });
 
-// Placeholder for Admin Panel POST routes if you extend admin.html
-app.post('/admin/addchannel', async (req, res) => { /* ... implementation ... */ });
-app.post('/admin/setreferreward', async (req, res) => { /* ... implementation ... */ });
+// Admin Panel POST routes (for forms if you extend admin.html)
+app.post('/admin/addchannel', async (req, res) => {
+    // This route might not be directly used if admin panel is purely bot-based.
+    // If you use admin.html with forms, implement auth here.
+    const { channelUsername, channelLink } = req.body;
+    if (!channelUsername || !channelUsername.startsWith('@') || !channelLink.startsWith('http')) {
+        return res.status(400).send("Invalid input.");
+    }
+    const added = await addChannel(channelUsername, channelLink);
+    if (added) {
+        res.redirect(`/admin.html?message=Channel ${channelUsername} added successfully!`);
+    } else {
+        res.redirect(`/admin.html?message=Channel ${channelUsername} already exists.`);
+    }
+});
+
+// Add other admin POST routes as needed (e.g., setReferralReward, updateBalance)
 
 app.listen(port, () => {
     console.log(`Express server running on port ${port}`);
