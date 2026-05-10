@@ -5,7 +5,6 @@ const express = require('express');
 const bodyParser = require('body-parser');
 
 // --- Firebase Initialization ---
-// Ensure FIREBASE_ADMIN_SDK_KEY is set in Render Environment Variables
 let serviceAccount;
 try {
     serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_SDK_KEY);
@@ -16,7 +15,6 @@ try {
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    // databaseURL: "YOUR_FIREBASE_DATABASE_URL" // Optional: Add if you need Realtime Database
 });
 
 const db = admin.firestore();
@@ -24,33 +22,33 @@ const db = admin.firestore();
 // --- Data Storage References ---
 const channelsRef = db.collection('botSettings').doc('channels');
 const sourceCodesRef = db.collection('sourceCodes');
-const settingsRef = db.collection('botSettings').doc('settings'); // For referralCoinReward
+const settingsRef = db.collection('botSettings').doc('settings');
 
 // --- Telegram Bot Setup ---
 const token = process.env.BOT_TOKEN;
-const botUsername = process.env.BOT_USERNAME; // For generating referral links
-const adminUserId = parseInt(process.env.ADMIN_USER_ID); // Ensure this is a number
+const botUsername = process.env.BOT_USERNAME;
+const adminUserId = parseInt(process.env.ADMIN_USER_ID);
 
 if (!token) {
-    console.error("TELEGRAM_BOT_TOKEN is not set. Please set it in environment variables.");
+    console.error("TELEGRAM_BOT_TOKEN is not set.");
     process.exit(1);
 }
 if (!botUsername) {
-    console.error("BOT_USERNAME is not set. Please set it in environment variables.");
+    console.error("BOT_USERNAME is not set.");
     process.exit(1);
 }
 if (isNaN(adminUserId)) {
-    console.error("ADMIN_USER_ID is not set or invalid. Please set it in environment variables.");
+    console.error("ADMIN_USER_ID is not set or invalid.");
     process.exit(1);
 }
 
 const bot = new TelegramBot(token, { polling: true });
 
-// --- Express Setup for Admin Panel (if you're using it) ---
+// --- Express Setup ---
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(express.static(path.join(__dirname, 'public'))); // Serve static files from 'public' folder
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // --- Helper Functions ---
@@ -60,12 +58,11 @@ async function getUser(userId) {
     if (userDoc.exists) {
         return userDoc.data();
     }
-    // Create new user if not exists
     const newUser = {
         balance: 0,
-        referredCount: 0, // Initialize referredCount
+        referredCount: 0,
         referredBy: null,
-        joinedChannels: {} // Key: channelUsername, Value: boolean (true if joined)
+        joinedChannels: {}
     };
     await db.collection('users').doc(String(userId)).set(newUser);
     return newUser;
@@ -77,9 +74,7 @@ async function updateUser(userId, data) {
 
 async function getChannels() {
     const doc = await channelsRef.get();
-    if (doc.exists && doc.data().list) {
-        return doc.data().list;
-    }
+    if (doc.exists && doc.data().list) return doc.data().list;
     return [];
 }
 
@@ -105,14 +100,12 @@ async function removeChannel(channelUsername) {
 async function getSourceCodes() {
     const snapshot = await sourceCodesRef.get();
     const sourceCodes = [];
-    snapshot.forEach(doc => {
-        sourceCodes.push({ id: doc.id, ...doc.data() });
-    });
-    return sourceCodes.sort((a, b) => parseInt(a.id) - parseInt(b.id)); // Sort by ID
+    snapshot.forEach(doc => { sourceCodes.push({ id: doc.id, ...doc.data() }); });
+    return sourceCodes.sort((a, b) => parseInt(a.id) - parseInt(b.id));
 }
 
 async function addSourceCode(data) {
-    const newId = Date.now().toString(); // Use timestamp or a more robust ID generation
+    const newId = Date.now().toString();
     await sourceCodesRef.doc(newId).set({ ...data, id: newId });
     return newId;
 }
@@ -123,10 +116,8 @@ async function removeSourceCode(sourceCodeId) {
 
 async function getSettings() {
     const doc = await settingsRef.get();
-    if (doc.exists && doc.data().referralCoinReward !== undefined) {
-        return doc.data();
-    }
-    return { referralCoinReward: 10 }; // Default value
+    if (doc.exists && doc.data().referralCoinReward !== undefined) return doc.data();
+    return { referralCoinReward: 10 };
 }
 
 async function setReferralCoinReward(reward) {
@@ -139,7 +130,7 @@ async function checkChannelMembership(userId, channelUsername) {
         return ['member', 'administrator', 'creator'].includes(chatMember.status);
     } catch (error) {
         console.error(`Error checking membership for user ${userId} in ${channelUsername}:`, error.message);
-        return false; // Assume not joined if error
+        return false;
     }
 }
 
@@ -156,77 +147,68 @@ bot.onText(/\/start(?: (\d+))?/, async (msg, match) => {
 
     let user = await getUser(userId);
 
-    // Handle referral
     if (referrerId && referrerId !== userId) {
         const referrer = await getUser(referrerId);
         const settings = await getSettings();
         const reward = settings.referralCoinReward || 10;
 
         if (referrer) {
-            referrer.referredCount++; // Increment referred count
-            user.referredBy = referrerId; // Assign who referred this user
+            referrer.referredCount++;
+            user.referredBy = referrerId;
             referrer.balance += reward;
             await updateUser(referrerId, { balance: referrer.balance, referredCount: referrer.referredCount });
             bot.sendMessage(referrerId, `🥳 You just earned ${reward} SpyCoin for a new referral! Your balance is now ${referrer.balance}.`);
-            console.log(`User ${userId} referred by ${referrerId}. Referrer balance updated.`);
         }
-        // Ensure user's referredBy is set, even if referrer doesn't exist (e.g., deleted account)
         await updateUser(userId, { referredBy: referrerId });
     }
 
-    // Check channel memberships
     const channels = await getChannels();
     let channelsToJoin = [];
-    const userJoinedChannels = user.joinedChannels || {}; // Initialize if not exists
+    const userJoinedChannels = user.joinedChannels || {};
 
     for (const channel of channels) {
         const isJoined = await checkChannelMembership(userId, channel);
-        userJoinedChannels[channel] = isJoined; // Update joined status
-        if (!isJoined) {
-            channelsToJoin.push(channel);
-        }
+        userJoinedChannels[channel] = isJoined;
+        if (!isJoined) channelsToJoin.push(channel);
     }
 
-    user.joinedChannels = userJoinedChannels; // Update user's joined channel status
-    await updateUser(userId, { joinedChannels: user.joinedChannels }); // Save updated joinedChannels status
+    user.joinedChannels = userJoinedChannels;
+    await updateUser(userId, { joinedChannels: user.joinedChannels });
 
     if (channelsToJoin.length > 0) {
         let message = "Please join the following channels first to access the bot:\n\n";
-        channelsToJoin.forEach(channel => {
-            message += `- [${channel}](https://t.me/${channel.substring(1)})\n`; // Link to channel
-        });
+        channelsToJoin.forEach(channel => { message += `- [${channel}](https://t.me/${channel.substring(1)})\n`; });
         message += "\nAfter joining, please send `/start` again.";
-
         bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
     } else {
-        // If all channels are joined, show the main menu
         showMainMenu(chatId, userId);
     }
 });
 
 // --- Main Menu Handler ---
 async function showMainMenu(chatId, userId) {
-    const user = await getUser(userId); // Get fresh user data
-    // Using Inline Keyboard for Main Menu buttons as requested
+    // Using Keyboard Buttons for Main Menu as requested
     const keyboard = [
-        [{ text: '✨ Source Codes', callback_data: 'source_codes' }],
-        [{ text: '💰 Balance', callback_data: 'balance' }, { text: '🔗 Refer', callback_data: 'refer' }]
+        [{ text: '✨ Source Codes' }],
+        [{ text: '💰 Balance' }, { text: '🔗 Refer' }]
     ];
     bot.sendMessage(chatId, '🌟 Welcome to the Main Menu!', {
         reply_markup: {
-            inline_keyboard: keyboard
+            keyboard: keyboard,
+            one_time_keyboard: true, // Optional: To remove keyboard after use
+            resize_keyboard: true
         }
     });
 }
 
 // --- Callback Query Handler ---
+// NOTE: Since Main Menu is now keyboard type, this handler is primarily for Source Code views.
 bot.on('callback_query', async (callbackQuery) => {
     const message = callbackQuery.message;
     const userId = callbackQuery.from.id;
     const chatId = message.chat.id;
     const data = callbackQuery.data;
 
-    // Answer the callback query to remove the "loading" effect
     bot.answerCallbackQuery(callbackQuery.id);
 
     if (data === 'source_codes') {
@@ -240,14 +222,10 @@ bot.on('callback_query', async (callbackQuery) => {
         await viewSourceCode(chatId, userId, sourceCodeId);
     } else if (data.startsWith('unlock_source_code_')) {
         const sourceCodeId = data.split('_')[3];
-        await unlockSourceCode(chatId, userId, sourceCodeId, message.message_id); // Pass message_id for editing
+        await unlockSourceCode(chatId, userId, sourceCodeId, message.message_id);
     } else if (data === 'earn') {
-        bot.editMessageText("⏳ Coming Soon!", {
-            chat_id: chatId,
-            message_id: message.message_id,
-            reply_markup: { inline_keyboard: [] }
-        });
-    } else if (data === 'next_source_code') { // Specific handler for 'Next' button logic if used separately
+        bot.editMessageText("⏳ Coming Soon!", { chat_id: chatId, message_id: message.message_id, reply_markup: { inline_keyboard: [] } });
+    } else if (data === 'next_source_code') {
         const currentSourceCodeId = message.text.match(/Source Code ID: (\d+)/)?.[1];
         if (currentSourceCodeId) {
             const allSourceCodes = await getSourceCodes();
@@ -257,11 +235,7 @@ bot.on('callback_query', async (callbackQuery) => {
                 await bot.deleteMessage(chatId, message.message_id);
                 await viewSourceCode(chatId, userId, nextSourceCode.id);
             } else {
-                bot.editMessageText("No more source codes available at the moment.", {
-                    chat_id: chatId,
-                    message_id: message.message_id,
-                    reply_markup: { inline_keyboard: [] }
-                });
+                bot.editMessageText("No more source codes available at the moment.", { chat_id: chatId, message_id: message.message_id, reply_markup: { inline_keyboard: [] } });
             }
         }
     } else if (data === 'back_to_source_codes') {
@@ -271,11 +245,26 @@ bot.on('callback_query', async (callbackQuery) => {
     }
 });
 
+// --- Handling Keyboard Button Presses for Main Menu ---
+bot.onText(/💰 Balance/, async (msg) => {
+    await showBalance(msg.chat.id, msg.from.id);
+});
+
+bot.onText(/🔗 Refer/, async (msg) => {
+    await showReferralInfo(msg.chat.id, msg.from.id);
+});
+
+bot.onText(/✨ Source Codes/, async (msg) => {
+    await showSourceCodesMenu(msg.chat.id, msg.from.id);
+});
+
+
 // --- Menu/Info Display Functions ---
 
 async function showBalance(chatId, userId) {
     const user = await getUser(userId);
-    bot.sendMessage(chatId, `Your current SpyCoin balance is: ${user.balance} SpyCoin 💰\n\n*Additional Info:*\n- You have referred ${user.referredCount} friends.\n- Your balance can be increased by earning more coins or through referrals.`);
+    // Removed Total Refer count as requested
+    bot.sendMessage(chatId, `Your current SpyCoin balance is: ${user.balance} SpyCoin 💰`);
 }
 
 async function showReferralInfo(chatId, userId) {
@@ -284,15 +273,12 @@ async function showReferralInfo(chatId, userId) {
     const settings = await getSettings();
     const referralReward = settings.referralCoinReward || 10;
 
-    // Using URL button for "Copy Link" functionality, which Telegram clients usually handle by opening the link
-    // or offering a copy option. This is the closest to a "copy" button a bot can provide.
     const keyboard = [
-        [{ text: '🔗 Copy Referral Link', url: referralLink }], // Use URL type button
-        [{ text: 'Back to Main Menu', callback_data: 'main_menu' }]
+        [{ text: '🔗 Copy Referral Link', url: referralLink }],
+        [{ text: 'Back to Main Menu', callback_data: 'main_menu' }] // This callback is for source code navigation, not main menu
     ];
 
-    // Fixed: Ensure referredCount is displayed correctly
-    bot.sendMessage(chatId, `🔗 Your Referral Link: \n${referralLink}\n\nFriends referred by you: ${user.referredCount}\n\nEarn ${referralReward} SpyCoin for each successful referral!`, {
+    bot.sendMessage(chatId, `🔗 Your Referral Link: \n${referralLink}\n\nEarn ${referralReward} SpyCoin for each successful referral!`, {
         reply_markup: {
             inline_keyboard: keyboard
         }
@@ -333,24 +319,17 @@ async function viewSourceCode(chatId, userId, sourceCodeId) {
     let messageText = `✨ **${sourceCode.caption}** ✨\n\n`;
     if (sourceCode.imageLink) messageText += `[Image Preview](${sourceCode.imageLink})\n\n`;
     messageText += `Unlock Cost: ${sourceCode.unlockCost} SpyCoin 💰\n`;
-    messageText += `Source Code ID: ${sourceCode.id}\n`; // Added for navigation logic
+    messageText += `Source Code ID: ${sourceCode.id}\n`;
 
     let inlineKeyboard = [];
 
     if (isUnlocked) {
-        inlineKeyboard.push([
-            { text: 'Open Source Code', url: sourceCode.fileLink }
-        ]);
+        inlineKeyboard.push([{ text: 'Open Source Code', url: sourceCode.fileLink }]);
     } else {
-        inlineKeyboard.push([
-            { text: 'Unlock File', callback_data: `unlock_source_code_${sourceCode.id}` }
-        ]);
-        inlineKeyboard.push([
-            { text: 'Earn More Coins', callback_data: 'earn' }
-        ]);
+        inlineKeyboard.push([{ text: 'Unlock File', callback_data: `unlock_source_code_${sourceCode.id}` }]);
+        inlineKeyboard.push([{ text: 'Earn More Coins', callback_data: 'earn' }]);
     }
 
-    // Navigation buttons
     const currentIndex = sourceCodes.findIndex(sc => sc.id === sourceCodeId);
     let navButtons = [];
     if (currentIndex > 0) {
@@ -359,18 +338,11 @@ async function viewSourceCode(chatId, userId, sourceCodeId) {
     if (currentIndex < sourceCodes.length - 1) {
         navButtons.push({ text: 'Next', callback_data: `view_source_code_${sourceCodes[currentIndex + 1].id}` });
     }
-    if (navButtons.length > 0) {
-        inlineKeyboard.push(navButtons);
-    }
+    if (navButtons.length > 0) inlineKeyboard.push(navButtons);
 
     inlineKeyboard.push([{ text: 'Back to Source Codes', callback_data: 'back_to_source_codes' }]);
 
-    bot.sendMessage(chatId, messageText, {
-        parse_mode: 'Markdown',
-        reply_markup: {
-            inline_keyboard: inlineKeyboard
-        }
-    });
+    bot.sendMessage(chatId, messageText, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: inlineKeyboard } });
 }
 
 async function unlockSourceCode(chatId, userId, sourceCodeId, messageId) {
@@ -387,12 +359,11 @@ async function unlockSourceCode(chatId, userId, sourceCodeId, messageId) {
         user.balance -= sourceCode.unlockCost;
         await updateUser(userId, { balance: user.balance });
 
-        // Edit the message to show the link
         await bot.editMessageText(`✨ **${sourceCode.caption}** ✨\n\n${sourceCode.imageLink ? `[Image Preview](${sourceCode.imageLink})\n\n` : ''}Unlocked! Here is your link:\n[Open Source Code](${sourceCode.fileLink})`, {
             chat_id: chatId,
             message_id: messageId,
             parse_mode: 'Markdown',
-            reply_markup: { inline_keyboard: [] } // Clear buttons
+            reply_markup: { inline_keyboard: [] }
         });
     } else {
         bot.sendMessage(chatId, `You need ${sourceCode.unlockCost} SpyCoin to unlock this. Your current balance is ${user.balance} SpyCoin.`, {
@@ -406,9 +377,8 @@ async function unlockSourceCode(chatId, userId, sourceCodeId, messageId) {
     }
 }
 
-// --- Admin Commands (using Telegram Bot) ---
-// These commands will interact with Firebase via helper functions
-
+// --- Admin Commands ---
+// ... (Admin commands remain unchanged from the previous version) ...
 bot.onText(/\/adminhelp/, (msg) => {
     if (msg.from.id != adminUserId) {
         bot.sendMessage(msg.chat.id, "You are not authorized to use admin commands.");
@@ -487,7 +457,6 @@ bot.onText(/\/removesourcecode (\d+)/, async (msg, match) => {
     if (msg.from.id != adminUserId) return bot.sendMessage(msg.chat.id, "Unauthorized.");
     const sourceCodeId = match[1];
     await removeSourceCode(sourceCodeId);
-    // TODO: Check if removal was successful and respond accordingly
     bot.sendMessage(msg.chat.id, `Attempted to remove source code with ID ${sourceCodeId}.`);
 });
 
@@ -499,12 +468,7 @@ bot.onText(/\/listsourcecodes/, async (msg) => {
     } else {
         let message = "Current Source Codes:\n\n";
         sourceCodes.forEach(sc => {
-            message += `ID: ${sc.id}\n`;
-            message += `Caption: ${sc.caption}\n`;
-            message += `Unlock Cost: ${sc.unlockCost} SpyCoin\n`;
-            message += `Image: ${sc.imageLink || 'N/A'}\n`;
-            message += `File Link: ${sc.fileLink}\n`;
-            message += "--------------------\n";
+            message += `ID: ${sc.id}\nCaption: ${sc.caption}\nUnlock Cost: ${sc.unlockCost} SpyCoin\nImage: ${sc.imageLink || 'N/A'}\nFile Link: ${sc.fileLink}\n--------------------\n`;
         });
         bot.sendMessage(msg.chat.id, message);
     }
@@ -529,21 +493,12 @@ bot.onText(/\/getreward/, async (msg) => {
 
 
 // --- Error Handling ---
-bot.on('polling_error', (error) => {
-    console.error('Polling error:', error.code, error.message);
-});
-
-bot.on('webhook_error', (error) => {
-    console.error('Webhook error:', error.code, error.message);
-});
-
-bot.on('error', (error) => {
-    console.error('General error:', error);
-});
+bot.on('polling_error', (error) => { console.error('Polling error:', error.code, error.message); });
+bot.on('webhook_error', (error) => { console.error('Webhook error:', error.code, error.message); });
+bot.on('error', (error) => { console.error('General error:', error); });
 
 
 // --- Start Server and Bot ---
-// Add Express routes for Admin Panel here if you want to use it
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
@@ -570,8 +525,6 @@ app.post('/admin/setreferreward', async (req, res) => {
     await setReferralCoinReward(rewardNum);
     res.redirect(`/admin?message=Referral reward set to ${rewardNum} SpyCoin.`);
 });
-
-// Add other admin POST routes similarly...
 
 app.listen(port, () => {
     console.log(`Express server running on port ${port}`);
