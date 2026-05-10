@@ -192,17 +192,21 @@ async function showMainMenu(chatId, userId) {
         [{ text: '✨ Source Codes' }],
         [{ text: '💰 Balance' }, { text: '🔗 Refer' }]
     ];
-    bot.sendMessage(chatId, '🌟 Welcome to the Main Menu!', {
+    bot.sendMessage(chatId, '🌟 *Welcome to the Main Menu!*', { // Bolded welcome message
+        parse_mode: 'Markdown',
         reply_markup: {
             keyboard: keyboard,
-            one_time_keyboard: true, // Optional: To remove keyboard after use
+            one_time_keyboard: true,
             resize_keyboard: true
         }
     });
+
+    // Sending the Ads message separately
+    const adsMessage = "*Ads* - [খুচরো ডলার বিক্রি করুন](https://t.me/RedExChangerBot/app)";
+    bot.sendMessage(chatId, adsMessage, { parse_mode: 'Markdown' });
 }
 
 // --- Callback Query Handler ---
-// NOTE: Since Main Menu is now keyboard type, this handler is primarily for Source Code views.
 bot.on('callback_query', async (callbackQuery) => {
     const message = callbackQuery.message;
     const userId = callbackQuery.from.id;
@@ -263,8 +267,21 @@ bot.onText(/✨ Source Codes/, async (msg) => {
 
 async function showBalance(chatId, userId) {
     const user = await getUser(userId);
-    // Removed Total Refer count as requested
-    bot.sendMessage(chatId, `Your current SpyCoin balance is: ${user.balance} SpyCoin 💰`);
+    // Added requested info for Balance
+    const supportGroupLink = "https://t.me/+rYxM4JzaTDE5MWM1";
+    const balanceInfo = `Your current SpyCoin balance is: ${user.balance} SpyCoin 💰\n\n*User Information:*\nChat ID: \`${userId}\``;
+
+    const keyboard = [
+        [{ text: 'Join Support Group', url: supportGroupLink }],
+        [{ text: 'Back to Main Menu', callback_data: 'main_menu' }]
+    ];
+
+    bot.sendMessage(chatId, balanceInfo, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+            inline_keyboard: keyboard
+        }
+    });
 }
 
 async function showReferralInfo(chatId, userId) {
@@ -273,9 +290,12 @@ async function showReferralInfo(chatId, userId) {
     const settings = await getSettings();
     const referralReward = settings.referralCoinReward || 10;
 
+    // New inline button for Join Refer Link Share Group
+    const joinGroupLink = "https://t.me/+7QEDhovtqJ4yZTA1";
     const keyboard = [
         [{ text: '🔗 Copy Referral Link', url: referralLink }],
-        [{ text: 'Back to Main Menu', callback_data: 'main_menu' }] // This callback is for source code navigation, not main menu
+        [{ text: 'Join Refer Link Share Group', url: joinGroupLink }], // New button
+        [{ text: 'Back to Main Menu', callback_data: 'main_menu' }]
     ];
 
     bot.sendMessage(chatId, `🔗 Your Referral Link: \n${referralLink}\n\nEarn ${referralReward} SpyCoin for each successful referral!`, {
@@ -378,7 +398,6 @@ async function unlockSourceCode(chatId, userId, sourceCodeId, messageId) {
 }
 
 // --- Admin Commands ---
-// ... (Admin commands remain unchanged from the previous version) ...
 bot.onText(/\/adminhelp/, (msg) => {
     if (msg.from.id != adminUserId) {
         bot.sendMessage(msg.chat.id, "You are not authorized to use admin commands.");
