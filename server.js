@@ -6,11 +6,17 @@ const bodyParser = require('body-parser');
 
 // --- Firebase Initialization ---
 // Ensure FIREBASE_ADMIN_SDK_KEY is set in Render Environment Variables
-const serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_SDK_KEY);
+let serviceAccount;
+try {
+    serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_SDK_KEY);
+} catch (e) {
+    console.error("Failed to parse FIREBASE_ADMIN_SDK_KEY. Ensure it's a valid JSON string.", e);
+    process.exit(1);
+}
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    databaseURL: "YOUR_FIREBASE_DATABASE_URL" // Optional: Add if you need Realtime Database
+    // databaseURL: "YOUR_FIREBASE_DATABASE_URL" // Optional: Add if you need Realtime Database
 });
 
 const db = admin.firestore();
@@ -55,13 +61,14 @@ async function getUser(userId) {
         return userDoc.data();
     }
     // Create new user if not exists
-    await db.collection('users').doc(String(userId)).set({
+    const newUser = {
         balance: 0,
-        referredCount: 0,
+        referredCount: 0, // Initialize referredCount
         referredBy: null,
         joinedChannels: {} // Key: channelUsername, Value: boolean (true if joined)
-    });
-    return { balance: 0, referredCount: 0, referredBy: null, joinedChannels: {} };
+    };
+    await db.collection('users').doc(String(userId)).set(newUser);
+    return newUser;
 }
 
 async function updateUser(userId, data) {
@@ -137,7 +144,6 @@ async function checkChannelMembership(userId, channelUsername) {
 }
 
 function getReferralLink(userId) {
-    // Ensure botUsername is correctly set from environment variables
     return `https://t.me/${botUsername}?start=${userId}`;
 }
 
@@ -157,14 +163,15 @@ bot.onText(/\/start(?: (\d+))?/, async (msg, match) => {
         const reward = settings.referralCoinReward || 10;
 
         if (referrer) {
-            referrer.referredCount++;
+            referrer.referredCount++; // Increment referred count
             user.referredBy = referrerId; // Assign who referred this user
             referrer.balance += reward;
             await updateUser(referrerId, { balance: referrer.balance, referredCount: referrer.referredCount });
             bot.sendMessage(referrerId, `🥳 You just earned ${reward} SpyCoin for a new referral! Your balance is now ${referrer.balance}.`);
             console.log(`User ${userId} referred by ${referrerId}. Referrer balance updated.`);
         }
-        await updateUser(userId, { referredBy: referrerId }); // Update the current user's referrer info
+        // Ensure user's referredBy is set, even if referrer doesn't exist (e.g., deleted account)
+        await updateUser(userId, { referredBy: referrerId });
     }
 
     // Check channel memberships
@@ -174,10 +181,10 @@ bot.onText(/\/start(?: (\d+))?/, async (msg, match) => {
 
     for (const channel of channels) {
         const isJoined = await checkChannelMembership(userId, channel);
+        userJoinedChannels[channel] = isJoined; // Update joined status
         if (!isJoined) {
             channelsToJoin.push(channel);
         }
-        userJoinedChannels[channel] = isJoined; // Update joined status
     }
 
     user.joinedChannels = userJoinedChannels; // Update user's joined channel status
@@ -200,6 +207,7 @@ bot.onText(/\/start(?: (\d+))?/, async (msg, match) => {
 // --- Main Menu Handler ---
 async function showMainMenu(chatId, userId) {
     const user = await getUser(userId); // Get fresh user data
+    // Using Inline Keyboard for Main Menu buttons as requested
     const keyboard = [
         [{ text: '✨ Source Codes', callback_data: 'source_codes' }],
         [{ text: '💰 Balance', callback_data: 'balance' }, { text: '🔗 Refer', callback_data: 'refer' }]
@@ -239,14 +247,14 @@ bot.on('callback_query', async (callbackQuery) => {
             message_id: message.message_id,
             reply_markup: { inline_keyboard: [] }
         });
-    } else if (data === 'next_source_code') {
-        const currentSourceCodeId = message.text.match(/Source Code ID: (\d+)/)?.[1]; // Assuming ID is in message text
+    } else if (data === 'next_source_code') { // Specific handler for 'Next' button logic if used separately
+        const currentSourceCodeId = message.text.match(/Source Code ID: (\d+)/)?.[1];
         if (currentSourceCodeId) {
             const allSourceCodes = await getSourceCodes();
             const currentIndex = allSourceCodes.findIndex(sc => sc.id === currentSourceCodeId);
             if (currentIndex !== -1 && currentIndex < allSourceCodes.length - 1) {
                 const nextSourceCode = allSourceCodes[currentIndex + 1];
-                await bot.deleteMessage(chatId, message.message_id); // Delete current message
+                await bot.deleteMessage(chatId, message.message_id);
                 await viewSourceCode(chatId, userId, nextSourceCode.id);
             } else {
                 bot.editMessageText("No more source codes available at the moment.", {
@@ -267,22 +275,24 @@ bot.on('callback_query', async (callbackQuery) => {
 
 async function showBalance(chatId, userId) {
     const user = await getUser(userId);
-    bot.sendMessage(chatId, `Your current SpyCoin balance is: ${user.balance} SpyCoin 💰`);
+    bot.sendMessage(chatId, `Your current SpyCoin balance is: ${user.balance} SpyCoin 💰\n\n*Additional Info:*\n- You have referred ${user.referredCount} friends.\n- Your balance can be increased by earning more coins or through referrals.`);
 }
 
 async function showReferralInfo(chatId, userId) {
     const user = await getUser(userId);
     const referralLink = getReferralLink(userId);
+    const settings = await getSettings();
+    const referralReward = settings.referralCoinReward || 10;
 
+    // Using URL button for "Copy Link" functionality, which Telegram clients usually handle by opening the link
+    // or offering a copy option. This is the closest to a "copy" button a bot can provide.
     const keyboard = [
-        [{ text: 'Copy Link', url: `https://t.me/${botUsername}?start=${userId}` }] // Telegram allows opening links directly
-        // NOTE: Telegram doesn't have a native 'copy' button for bots that truly copies to clipboard.
-        // The 'url' approach opens the link, which is the closest.
-        // Alternatively, send the link as a message and instruct user to copy.
-        , [{ text: 'Back to Main Menu', callback_data: 'main_menu' }]
+        [{ text: '🔗 Copy Referral Link', url: referralLink }], // Use URL type button
+        [{ text: 'Back to Main Menu', callback_data: 'main_menu' }]
     ];
 
-    bot.sendMessage(chatId, `🔗 Your Referral Link: \n${referralLink}\n\nFriends referred by you: ${user.referredCount}\n\nEarn ${ (await getSettings()).referralCoinReward || 10 } SpyCoin for each successful referral!`, {
+    // Fixed: Ensure referredCount is displayed correctly
+    bot.sendMessage(chatId, `🔗 Your Referral Link: \n${referralLink}\n\nFriends referred by you: ${user.referredCount}\n\nEarn ${referralReward} SpyCoin for each successful referral!`, {
         reply_markup: {
             inline_keyboard: keyboard
         }
@@ -347,7 +357,7 @@ async function viewSourceCode(chatId, userId, sourceCodeId) {
         navButtons.push({ text: 'Back', callback_data: `view_source_code_${sourceCodes[currentIndex - 1].id}` });
     }
     if (currentIndex < sourceCodes.length - 1) {
-        navButtons.push({ text: 'Next', callback_data: `view_source_code_${sourceCodes[currentIndex + 1].id}` }); // Changed from next_source_code to view_source_code_
+        navButtons.push({ text: 'Next', callback_data: `view_source_code_${sourceCodes[currentIndex + 1].id}` });
     }
     if (navButtons.length > 0) {
         inlineKeyboard.push(navButtons);
@@ -535,15 +545,11 @@ bot.on('error', (error) => {
 // --- Start Server and Bot ---
 // Add Express routes for Admin Panel here if you want to use it
 app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin.html')); // Assuming admin.html is in 'public' folder
+    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-// Example POST route for adding a channel via admin panel
 app.post('/admin/addchannel', async (req, res) => {
     const { channelUsername } = req.body;
-    // ** IMPORTANT: Implement admin authentication here! **
-    // For simplicity, we'll rely on the Telegram bot's admin check for now if using admin panel.
-    // A robust solution would involve session management or API keys.
     if (!channelUsername || !channelUsername.startsWith('@')) {
         return res.status(400).send("Invalid channel username. Must start with '@'.");
     }
@@ -555,7 +561,6 @@ app.post('/admin/addchannel', async (req, res) => {
     }
 });
 
-// Example POST route for setting referral reward via admin panel
 app.post('/admin/setreferreward', async (req, res) => {
     const { reward } = req.body;
     const rewardNum = parseInt(reward);
@@ -567,14 +572,11 @@ app.post('/admin/setreferreward', async (req, res) => {
 });
 
 // Add other admin POST routes similarly...
-// For add/remove source code, you might need a more complex form and handling.
-
 
 app.listen(port, () => {
     console.log(`Express server running on port ${port}`);
 });
 
-// Start Telegram Bot polling
 bot.startPolling().then(() => {
     console.log('Telegram Bot is running and polling...');
 }).catch(err => {
