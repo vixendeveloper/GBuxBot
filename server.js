@@ -7,7 +7,8 @@ const bodyParser = require('body-parser');
 // --- Firebase Initialization ---
 let serviceAccount;
 try {
-    serviceAccount = JSON.parse(process.env.FIRE_BASE_ADMIN_SDK_KEY); // Corrected Env Var Name
+    // Ensure you have FIRE_BASE_ADMIN_SDK_KEY set as an environment variable in Render
+    serviceAccount = JSON.parse(process.env.FIRE_BASE_ADMIN_SDK_KEY);
 } catch (e) {
     console.error("Failed to parse FIRE_BASE_ADMIN_SDK_KEY. Ensure it's a valid JSON string.", e);
     process.exit(1);
@@ -339,9 +340,9 @@ async function viewSourceCode(chatId, userId, sourceCodeId) {
     let inlineKeyboard = [];
 
     if (isUnlocked) {
-        if (sourceCode.fileLink) { // Use fileLink if provided and fileId is not
+        if (sourceCode.fileLink) {
             inlineKeyboard.push([{ text: 'Open Source Code', url: sourceCode.fileLink }]);
-        } else if (sourceCode.fileId) { // Fallback to fileId if link isn't available
+        } else if (sourceCode.fileId) {
             inlineKeyboard.push([{ text: 'Open Source Code', callback_data: `send_file_${sourceCode.id}` }]);
         } else {
             messageText += "\nFile not available.";
@@ -391,7 +392,6 @@ bot.onText(/send_file_(\d+)/, async (msg, match) => {
 
     try {
         await bot.sendDocument(msg.chat.id, sourceCode.fileId, { caption: `Here is your source code: ${sourceCode.caption}` });
-        // Optionally, remove the file sending button or update message
         bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: msg.chat.id, message_id: msg.message_id });
     } catch (error) {
         console.error("Error sending document:", error);
@@ -419,9 +419,9 @@ async function unlockSourceCode(chatId, userId, sourceCodeId, messageId) {
         unlockedMessageText += `Unlocked successfully! \n`;
 
         let unlockedKeyboard = [];
-        if (sourceCode.fileLink) { // Prioritize fileLink if available
+        if (sourceCode.fileLink) {
             unlockedKeyboard.push([{ text: 'Open Source Code', url: sourceCode.fileLink }]);
-        } else if (sourceCode.fileId) { // Fallback to fileId
+        } else if (sourceCode.fileId) {
             unlockedKeyboard.push([{ text: 'Open Source Code', callback_data: `send_file_${sourceCode.id}` }]);
         } else {
             unlockedMessageText += "File not available.";
@@ -468,6 +468,7 @@ bot.onText(/\/admin/, async (msg) => {
 });
 
 // --- Admin Panel Navigation Handlers ---
+// Declared only ONCE here.
 const navigateBackToAdminMenu = async (chatId) => {
     const adminMenuKeyboard = [
         [{ text: 'Manage Source Codes' }],
@@ -547,9 +548,8 @@ bot.on('text', async (msg) => {
                     id: Date.now().toString(),
                     caption: adminState[userId].caption,
                     imageLink: adminState[userId].imageLink || null,
-                    fileLink: adminState[userId].fileLink, // Store fileLink
+                    fileLink: adminState[userId].fileLink,
                     unlockCost: adminState[userId].unlockCost
-                    // Removed fileId and fileName as we are using links
                 };
                 await addSourceCode(newSourceCode);
                 bot.sendMessage(chatId, 'Source code added successfully!');
@@ -655,22 +655,8 @@ bot.on('text', async (msg) => {
 });
 
 // --- Admin Menu Navigation Handlers ---
-const navigateBackToAdminMenu = async (chatId) => {
-    const adminMenuKeyboard = [
-        [{ text: 'Manage Source Codes' }],
-        [{ text: 'Manage Channels' }],
-        [{ text: 'Manage Users' }],
-        [{ text: 'Settings' }]
-    ];
-    bot.sendMessage(chatId, 'Returning to Admin Panel...', {
-        reply_markup: {
-            keyboard: adminMenuKeyboard,
-            one_time_keyboard: true,
-            resize_keyboard: true
-        }
-    });
-};
 
+// Manage Source Codes Menu
 bot.onText(/Manage Source Codes/, async (msg) => {
     const adminMenuKeyboard = [
         [{ text: 'Add New Source Code' }],
@@ -688,7 +674,7 @@ bot.onText(/Manage Source Codes/, async (msg) => {
 
 // Add New Source Code Flow - MODIFIED FOR FILE LINK
 bot.onText(/Add New Source Code/, (msg) => {
-    adminState[msg.from.id] = { step: 'awaiting_image_or_link' }; // Changed step
+    adminState[msg.from.id] = { step: 'awaiting_image_or_link' };
     bot.sendMessage(msg.chat.id, 'Please send the Image Link for the source code (or send "skip" if no image).');
 });
 
@@ -850,7 +836,7 @@ bot.onText(/Back to User Admin Menu/, async (msg) => {
 
 // --- General Admin Menu Navigation ---
 bot.onText(/Back to Admin Menu/, async (msg) => {
-    await navigateBackToAdminMenu(msg.chat.id);
+    await navigateBackToAdminMenu(msg.chat.id); // This correctly calls the single declared function.
 });
 
 // --- Error Handling ---
