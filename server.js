@@ -1,3 +1,5 @@
+--- START OF FILE Paste June 20, 2026 - 11:59PM ---
+
 const TelegramBot = require('node-telegram-bot-api');
 const admin = require('firebase-admin');
 const path = require('path');
@@ -247,6 +249,29 @@ bot.on('callback_query', async (callbackQuery) => {
         showSourceCodesMenu(chatId, userId);
     } else if (data === 'main_menu') {
         showMainMenu(chatId, userId);
+    } else if (data.startsWith('send_file_')) { // Handler for sending file via file_id
+        const sourceCodeId = data.split('_')[2];
+        const sourceCodes = await getSourceCodes();
+        const sourceCode = sourceCodes.find(sc => sc.id === sourceCodeId);
+
+        if (!sourceCode) {
+            bot.sendMessage(chatId, "Source code not found.");
+            return;
+        }
+
+        if (!sourceCode.fileId) {
+            bot.sendMessage(chatId, "File not available for this source code.");
+            return;
+        }
+
+        try {
+            await bot.sendDocument(chatId, sourceCode.fileId, { caption: `Here is your source code: ${sourceCode.caption}` });
+            // Optionally remove the "Open Source Code" button after sending the file
+            // await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: message.message_id });
+        } catch (error) {
+            console.error("Error sending document:", error);
+            bot.sendMessage(chatId, "Failed to send the file. Please contact support.");
+        }
     }
 });
 
@@ -343,6 +368,7 @@ async function viewSourceCode(chatId, userId, sourceCodeId) {
         if (sourceCode.fileLink) {
             inlineKeyboard.push([{ text: 'Open Source Code', url: sourceCode.fileLink }]);
         } else if (sourceCode.fileId) {
+            // Changed this to a callback_data to handle sending the file
             inlineKeyboard.push([{ text: 'Open Source Code', callback_data: `send_file_${sourceCode.id}` }]);
         } else {
             messageText += "\nFile not available.";
@@ -366,38 +392,6 @@ async function viewSourceCode(chatId, userId, sourceCodeId) {
 
     bot.sendMessage(chatId, messageText, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: inlineKeyboard } });
 }
-
-// Handler to send file via file_id when unlocked
-bot.onText(/send_file_(\d+)/, async (msg, match) => {
-    const sourceCodeId = match[1];
-    const userId = msg.from.id;
-    const sourceCodes = await getSourceCodes();
-    const sourceCode = sourceCodes.find(sc => sc.id === sourceCodeId);
-
-    if (!sourceCode) {
-        bot.sendMessage(msg.chat.id, "Source code not found.");
-        return;
-    }
-
-    if (!sourceCode.fileId) {
-        bot.sendMessage(msg.chat.id, "File not available for this source code.");
-        return;
-    }
-
-    const user = await getUser(userId);
-    if (user.balance < sourceCode.unlockCost) {
-         bot.sendMessage(msg.chat.id, `You need ${sourceCode.unlockCost} SpyCoin to unlock this. Your current balance is ${user.balance} SpyCoin.`);
-         return;
-    }
-
-    try {
-        await bot.sendDocument(msg.chat.id, sourceCode.fileId, { caption: `Here is your source code: ${sourceCode.caption}` });
-        bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: msg.chat.id, message_id: msg.message_id });
-    } catch (error) {
-        console.error("Error sending document:", error);
-        bot.sendMessage(msg.chat.id, "Failed to send the file. Please contact support.");
-    }
-});
 
 
 async function unlockSourceCode(chatId, userId, sourceCodeId, messageId) {
@@ -500,21 +494,64 @@ bot.onText(/Manage Source Codes/, async (msg) => {
     });
 });
 
-// Add New Source Code Flow - MODIFIED FOR FILE LINK
+// Add New Source Code Flow - MODIFIED FOR FILE UPLOAD
 bot.onText(/Add New Source Code/, (msg) => {
-    adminState[msg.from.id] = { step: 'awaiting_image_or_link' }; // Changed step
+    adminState[msg.from.id] = { step: 'awaiting_image_or_link' };
     bot.sendMessage(msg.chat.id, 'Please send the Image Link for the source code (or send "skip" if no image).');
 });
 
-// Handler for text input during Add Source Code flow
+// --- Handler for actual file uploads (documents) ---
+bot.on('document', async (msg) => {
+    const userId = msg.from.id;
+    const chatId = msg.chat.id;
+    const document = msg.document;
+
+    if (userId !== adminUserId) return; // Only admin can use this feature in this context
+
+    if (adminState[userId] && adminState[userId].step === 'awaiting_file_upload') {
+        adminState[userId].fileId = document.file_id; // Store Telegram's file_id
+        adminState[userId].fileName = document.file_name; // Store original file name
+        adminState[userId].step = 'awaiting_cost';
+        bot.sendMessage(chatId, `File "${document.file_name}" received and stored with ID: \`${document.file_id}\`. Now, please send the Unlock Cost (points).`, { parse_mode: 'Markdown' });
+    } else {
+        // If an admin sends a document but not in the "add source code" flow,
+        // you might want to ignore it or provide a default response.
+        bot.sendMessage(chatId, "Received a document, but I don't know what to do with it right now. Please use the admin menu to add source codes.");
+    }
+});
+
+
+// Handler for text input during Admin flows
 bot.on('text', async (msg) => {
     const userId = msg.from.id;
     const chatId = msg.chat.id;
     const text = msg.text;
 
-    if (!adminState[userId]) return;
+    // Ignore commands or non-admin messages if an adminState isn't active
+    if (!adminState[userId] && userId !== adminUserId) return;
+    if (msg.text.startsWith('/')) return; // Ignore actual commands
 
-    // --- Add New Source Code Steps (Modified for File Link) ---
+    // Check if the user is the admin
+    if (userId !== adminUserId) return;
+
+    if (!adminState[userId]) {
+        // If admin sends text but no state, might be trying to type a menu option
+        // or a general message. Handle if it matches an admin menu option.
+        if (text === 'Back to Admin Menu' || text === 'Back to Source Code Admin Menu' ||
+            text === 'Back to Channel Admin Menu' || text === 'Back to Settings' ||
+            text === 'Back to User Admin Menu') {
+            // These are handled by their specific .onText regex. This 'text' handler
+            // runs after .onText, so if it reaches here, it means the .onText didn't consume it.
+            // This is generally safe to ignore if a state isn't active.
+            return;
+        }
+        // If it's just random text from admin with no active state, acknowledge or ignore.
+        // For now, we'll return, as other .onText handlers might catch specific keywords.
+        return;
+    }
+
+
+    // --- Add New Source Code Steps (Modified for File Link / File ID) ---
     if (adminState[userId].step === 'awaiting_image_or_link') {
         if (text.toLowerCase() !== 'skip') {
             adminState[userId].imageLink = text;
@@ -523,21 +560,41 @@ bot.on('text', async (msg) => {
         bot.sendMessage(chatId, 'Image link received (or skipped). Now, please send the Caption for the source code.');
     } else if (adminState[userId].step === 'awaiting_caption') {
         adminState[userId].caption = text;
-        adminState[userId].step = 'awaiting_file_link'; // Changed step
-        bot.sendMessage(chatId, 'Caption received. Now, please send the File Link (URL) for the source code.');
-    } else if (adminState[userId].step === 'awaiting_file_link') { // NEW STEP FOR FILE LINK
+        adminState[userId].step = 'awaiting_file_type'; // New step to ask for file type
+        bot.sendMessage(chatId, 'Caption received. Do you want to provide a *File Link* (URL) or *Upload a File*? (Type "link" or "upload")', { parse_mode: 'Markdown' });
+    } else if (adminState[userId].step === 'awaiting_file_type') {
+        if (text.toLowerCase() === 'link') {
+            adminState[userId].fileType = 'link';
+            adminState[userId].step = 'awaiting_file_link';
+            bot.sendMessage(chatId, 'Okay, please send the File Link (URL) for the source code.');
+        } else if (text.toLowerCase() === 'upload') {
+            adminState[userId].fileType = 'upload';
+            adminState[userId].step = 'awaiting_file_upload';
+            bot.sendMessage(chatId, 'Okay, please *upload* the file directly to me now.');
+        } else {
+            bot.sendMessage(chatId, 'Invalid option. Please type "link" or "upload".');
+        }
+    } else if (adminState[userId].step === 'awaiting_file_link') {
         if (!text.startsWith('http')) return bot.sendMessage(chatId, 'Invalid link format. Please provide a valid URL for the file.');
         adminState[userId].fileLink = text;
         adminState[userId].step = 'awaiting_cost';
         bot.sendMessage(chatId, 'File link received. Now, please send the Unlock Cost (points).');
-    } else if (adminState[userId].step === 'awaiting_cost') {
+    }
+    // 'awaiting_file_upload' is handled by bot.on('document')
+    else if (adminState[userId].step === 'awaiting_cost') {
         const cost = parseInt(text);
         if (!isNaN(cost) && cost >= 0) {
             adminState[userId].unlockCost = cost;
             adminState[userId].step = 'confirmation';
 
-            let confirmationMessage = `Please confirm:\nImage Link: ${adminState[userId].imageLink || 'N/A'}\nCaption: ${adminState[userId].caption}\nFile Link: ${adminState[userId].fileLink}\nUnlock Cost: ${adminState[userId].unlockCost}\n\nType 'confirm' to save, or 'cancel' to abort.`;
-            bot.sendMessage(chatId, confirmationMessage);
+            let confirmationMessage = `Please confirm:\nImage Link: ${adminState[userId].imageLink || 'N/A'}\nCaption: ${adminState[userId].caption}\n`;
+            if (adminState[userId].fileType === 'link') {
+                confirmationMessage += `File Link: ${adminState[userId].fileLink}\n`;
+            } else if (adminState[userId].fileType === 'upload') {
+                confirmationMessage += `File ID: ${adminState[userId].fileId} (Original name: ${adminState[userId].fileName})\n`;
+            }
+            confirmationMessage += `Unlock Cost: ${adminState[userId].unlockCost}\n\nType 'confirm' to save, or 'cancel' to abort.`;
+            bot.sendMessage(chatId, confirmationMessage, { parse_mode: 'Markdown' });
         } else {
             bot.sendMessage(chatId, 'Invalid cost. Please enter a valid number for points.');
         }
@@ -548,9 +605,15 @@ bot.on('text', async (msg) => {
                     id: Date.now().toString(),
                     caption: adminState[userId].caption,
                     imageLink: adminState[userId].imageLink || null,
-                    fileLink: adminState[userId].fileLink,
                     unlockCost: adminState[userId].unlockCost
                 };
+                if (adminState[userId].fileType === 'link') {
+                    newSourceCode.fileLink = adminState[userId].fileLink;
+                } else if (adminState[userId].fileType === 'upload') {
+                    newSourceCode.fileId = adminState[userId].fileId;
+                    newSourceCode.fileName = adminState[userId].fileName; // Save file name for reference
+                }
+
                 await addSourceCode(newSourceCode);
                 bot.sendMessage(chatId, 'Source code added successfully!');
             } catch (error) {
@@ -672,7 +735,7 @@ bot.onText(/Manage Source Codes/, async (msg) => {
     });
 });
 
-// Add New Source Code Flow - MODIFIED FOR FILE LINK
+// Add New Source Code Flow - MODIFIED FOR FILE UPLOAD
 bot.onText(/Add New Source Code/, (msg) => {
     adminState[msg.from.id] = { step: 'awaiting_image_or_link' };
     bot.sendMessage(msg.chat.id, 'Please send the Image Link for the source code (or send "skip" if no image).');
